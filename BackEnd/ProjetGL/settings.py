@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+from datetime import timedelta
 import os
 from pathlib import Path
 import environ
@@ -57,9 +58,13 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
+    'App',
+    'rest_framework',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'debug_toolbar'
+    'debug_toolbar',
+    'djoser',
+    
 ]
 
 INTERNAL_IPS = [
@@ -78,6 +83,26 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "debug_toolbar.middleware.DebugToolbarMiddleware",  
 ]
+
+
+
+REST_FRAMEWORK = {
+
+    'COERCE_DECIMAL_TO_STRING' : False,
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
+
+SIMPLE_JWT = {
+    'AUTH_HEADER_TYPES': ('JWT',),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=120),  # Token expiration
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=120),
+    'ROTATE_REFRESH_TOKENS': True,  # Generate new refresh token on each use
+    'BLACKLIST_AFTER_ROTATION': True,  # Prevent reuse of refresh tokens
+}
+
 
 ROOT_URLCONF = 'ProjetGL.urls'
 
@@ -131,6 +156,10 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+
+AUTH_USER_MODEL = 'App.User'
 
 
 # Internationalization
