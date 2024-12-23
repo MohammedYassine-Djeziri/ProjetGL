@@ -1,10 +1,10 @@
+from asyncio import mixins
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from datetime import timedelta
-
 
 
 
@@ -35,6 +35,11 @@ class Student(models.Model):
         on_delete=models.CASCADE, 
         related_name='student_profile'
     )
+    
+    biography = models.TextField(blank=True, null=False)
+    
+    
+    
     
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name}'s Student Profile"
@@ -69,6 +74,7 @@ class Course(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     duration_hours = models.IntegerField(
         validators=[MinValueValidator(0)]
+        , null=True
     )
     language = models.CharField(max_length=50)
     
@@ -94,37 +100,47 @@ class CourseContent(models.Model):
         max_length=20, 
         choices=CONTENT_TYPES
     )
-    content_data_file = models.FileField(upload_to='course_contents/')
-    uploded_at = models.DateTimeField(auto_now=True)
+    content_data_file = models.FileField(upload_to='course_contents/' , null=True)
+    uploaded_at = models.DateTimeField(auto_now=True)
     duration_minutes = models.IntegerField(
         validators=[MinValueValidator(0)]
     )
     is_free_preview = models.BooleanField(default=False)
     
     class Meta:
-        ordering = ['uploded_at']
+        ordering = ['uploaded_at']
     
     def __str__(self):
         return f"{self.course.title} - {self.title}"
 
 class Quiz(models.Model):
     """Quiz model associated with courses"""
-    course = models.ForeignKey(
-        Course, 
+    course_content = models.OneToOneField(
+        CourseContent, 
         on_delete=models.CASCADE, 
         related_name='quizzes'
     )
+    
     title = models.CharField(max_length=200)
-
-    def __str__(self):
-        return f"Quiz: {self.title}"
-    question_text = models.TextField()
-    possible_answers = models.JSONField()
-    correct_answer = models.CharField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return self.question_text[:50]
+        return f"Quiz: {self.title}"
 
+class QuizQuestion(models.Model):
+    """Questions within a quiz"""
+    
+    
+    quiz = models.ForeignKey(
+        Quiz, 
+        on_delete=models.CASCADE, 
+        related_name='questions'
+    )
+    question_text = models.TextField()
+    possible_answers = models.JSONField()
+    correct_answer = models.CharField(max_length=500)    
+    def __str__(self):
+        return self.question_text[:50]
 
 class StudentProgress(models.Model):
     """Tracks student progress in a course"""
@@ -139,24 +155,24 @@ class StudentProgress(models.Model):
         related_name='student_progresses'
     )
 
-    last_wached_content =  models.ForeignKey(
-        'CourseContent', 
+    watched_course_content =  models.ForeignKey(
+        CourseContent, 
         on_delete=models.CASCADE, 
         related_name='course_content_progresses'
     )
 
-    completion_percentage = models.FloatField(
-        validators=[
-            MinValueValidator(0.0), 
-            MaxValueValidator(100.0)
-        ],
-        default=0.0
-    )
+    # completion_percentage = models.FloatField(
+    #     validators=[
+    #         MinValueValidator(0.0), 
+    #         MaxValueValidator(100.0)
+    #     ],
+    #     default=0.0
+    # )
 
     
 
     class Meta:
-        unique_together = ['student', 'course']
+        
         verbose_name_plural = 'Student Progresses'
     
     def __str__(self):
@@ -179,37 +195,39 @@ class Certificate(models.Model):
         unique=True
     )
     issue_date = models.DateTimeField(auto_now_add=True)
-    certifications_image = models.ImageField(
-        upload_to='Certifications/', 
-        null=True, 
-        blank=True
-    )
+    # certifications_image = models.ImageField(
+    #     upload_to='Certifications/', 
+    #     null=True, 
+    #     blank=True
+    # )
     Student.__str__
     def __str__(self):
         return f"Certificate for {self.student.__str__} - {self.course.title}"
 
-class ForumTopic(models.Model):
-    """Discussion topics within a course"""
+# class ForumTopic(models.Model):
+#     """Discussion topics within a course"""
+#     course = models.ForeignKey(
+#         Course, 
+#         on_delete=models.CASCADE, 
+#         related_name='forum_topics'
+#     )
+#     title = models.CharField(max_length=200)
+#     description = models.TextField(blank=True, null=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     # is_pinned = models.BooleanField(default=False)
+    
+#     def __str__(self):
+#         return self.title
+
+class ForumPost(models.Model):
+    """Individual posts within a forum topic"""
     course = models.ForeignKey(
         Course, 
         on_delete=models.CASCADE, 
         related_name='forum_topics'
     )
     title = models.CharField(max_length=200)
-    description = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    # is_pinned = models.BooleanField(default=False)
-    
-    def __str__(self):
-        return self.title
-
-class ForumPost(models.Model):
-    """Individual posts within a forum topic"""
-    topic = models.ForeignKey(
-        ForumTopic, 
-        on_delete=models.CASCADE, 
-        related_name='posts'
-    )
+    # description = models.TextField(blank=True, null=True)
     user = models.ForeignKey(
         User, 
         on_delete=models.CASCADE, 
@@ -226,7 +244,7 @@ class ForumPost(models.Model):
 
 class ForumPostComment(models.Model):
     """Individual posts within a forum topic"""
-    Post = models.ForeignKey(
+    post = models.ForeignKey(
         ForumPost, 
         on_delete=models.CASCADE, 
         related_name='post_comment'
@@ -277,65 +295,44 @@ class StudentSubscription(models.Model):
     )
 
     start_date = models.DateTimeField(auto_now_add=True)
-    end_date = models.DateTimeField(default=   ( timezone.now() + timedelta(days=180) )     )
+    end_date = models.DateTimeField()
     
     def __str__(self):
         return f"{self.student.__str__} - in sub"
-
-class Payment(models.Model):
-    """Payment transactions"""
-    PAYMENT_TYPES = (
-        ('course', 'Course Purchase'),
-        ('Inrollement', 'Inrollement'),
-    )
     
-    user = models.ForeignKey(
-        'User', 
-        on_delete=models.CASCADE, 
+    def is_sub(student : Student  , std_id  : int  = -1 ):
+       sub= None
+       if std_id !=-1:
+           print(std_id , "i am in id")
+           sub =  StudentSubscription.objects.filter(student_id = std_id).last() 
+       else:
+           print(std_id , "i am in obj")
+           sub =  StudentSubscription.objects.filter(student_id = student.pk).last()  
+       print("\nA2\n")
+       print(sub)
+       return (  (sub ) and ( sub.end_date >= timezone.now() ) )
+
+
+class Payment_Order(models.Model):
+
+    student = models.ForeignKey(
+        Student, 
+        on_delete=models.PROTECT, 
         related_name='payments'
     )
-
-    paid_amount = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        validators=[MinValueValidator(0)]
-    )
-
-    course_price= models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        validators=[MinValueValidator(0)],
-        null=True
-    )
-
-
-    payment_type = models.CharField(
-        max_length=20, 
-        choices=PAYMENT_TYPES
-    )
-
-
-    transaction_id = models.CharField(
-        max_length=100, 
-        unique=True
-    )
-
-    payment_date = models.DateTimeField(auto_now_add=True)
+    course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name='course_payment_orders')    
     
     def __str__(self):
-        return f"Payment {self.transaction_id} - {self.status}"
+        return f"Payment {self.student.__str__} - {self.course}"
     
 
-
 class Enrollment(models.Model):
-    student = models.ForeignKey(User, on_delete=models.CASCADE, related_name='course_enrollments')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='course_enrollments')
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='student_enrollments')
-    payment = models.OneToOneField(Payment, on_delete=models.CASCADE, related_name='enrollment_pay')
+    payment = models.OneToOneField(Payment_Order, on_delete=models.CASCADE, related_name='enrollment_pay')
     enrolled_at = models.DateTimeField(auto_now_add=True)
     def __str__(self):
         return f"Payment {self.student.__str__} - {self.course.title}"
-
-
 
 
 class AffiliateProgram(models.Model):
@@ -385,3 +382,25 @@ class AffiliateEarning(models.Model):
     
     def __str__(self):
         return f"Affiliate Earning - {self.amount}"
+    
+# models.py
+class StripePayment(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.PROTECT, related_name='stripe_payments')
+    stripe_charge_id = models.CharField(max_length=100)
+    paid_amount = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        validators=[MinValueValidator(0)]
+    )
+    course_price= models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        validators=[MinValueValidator(0)],
+        null=True
+    )
+    payment_order = models.ForeignKey(Payment_Order ,on_delete=models.PROTECT ,  null=False )
+
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.stripe_charge_id
