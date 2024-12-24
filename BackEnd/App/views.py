@@ -1,0 +1,1013 @@
+from django.shortcuts import get_object_or_404, render , redirect
+from rest_framework import viewsets 
+from rest_framework.mixins import CreateModelMixin , UpdateModelMixin , RetrieveModelMixin , ListModelMixin
+from .models import (Instructor, Student , StudentProgress, User ,Course , CourseContent , Quiz , QuizQuestion  ,
+                     ForumPostComment , ForumPost , Payment_Order , StripePayment , Enrollment , Certificate , StudentSubscription)
+from .serializers import (InstructorSerializer, StudentSerializer , CourseSerializer , 
+                          InstructorSerializerSensitive , CourseContentSerializer , QuizSerializer ,
+                          QuizQuestionSerializer , ForumPostSerializer , ForumPostCommentSerializer,
+                          StudentCourseContentSerializer , StudentQuizSerializer ,
+                          StudentQuizQuestionSerializer ,StudentProgressSerializer, CourseContentWithQuizSerializer,
+                          StudentCourseSerializer , UnEnrolledStudentCourseContentSerializer , CertificateSerializer)
+from rest_framework.permissions import IsAuthenticated , SAFE_METHODS
+from rest_framework.viewsets import GenericViewSet , ReadOnlyModelViewSet , ModelViewSet 
+from django.views import View
+from rest_framework.decorators import action
+from rest_framework.response import Response
+import json
+from django.http import HttpResponse, JsonResponse, HttpRequest  , HttpResponseRedirect
+import stripe
+from django.core.mail import send_mail
+from django.conf import settings
+from django.views.generic import TemplateView
+from django.views.decorators.csrf import csrf_exempt
+import os
+import requests
+from django.http import FileResponse, Http404
+from django.views.decorators.csrf import csrf_protect
+from django.utils.decorators import method_decorator
+from django.core.exceptions import ValidationError
+import logging  # For logging errors and important events
+from django.utils.decorators import method_decorator  # Apply decorators to class methods
+from django.utils import timezone
+from django.contrib.auth.mixins import LoginRequiredMixin
+import hmac
+import hashlib
+from rest_framework.views import APIView
+from uuid import uuid4
+from django.utils import timezone
+from datetime import timedelta
+from django.urls import reverse_lazy
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+class InstructorViewSet(ListModelMixin , CreateModelMixin, RetrieveModelMixin , UpdateModelMixin , GenericViewSet):
+    queryset = Instructor.objects.all()
+    serializer_class = InstructorSerializer
+    
+    def get_serializer_class(self):
+        if self.request.method in SAFE_METHODS:
+            return InstructorSerializer
+        return InstructorSerializerSensitive
+    
+    def create(self, request):
+        instructor = Instructor.objects.create(user_id=request.user.id)
+        serializer = InstructorSerializerSensitive(instructor, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+    
+    
+    @action(detail = False , methods = ['GET', 'PUT'])
+    def me(self, request):
+       print(request.user.id)
+       (instructor , is_created) = Instructor.objects.get_or_create(user=request.user.id)
+       if not is_created :
+        if( request.method == 'GET'):
+               ser_data = InstructorSerializer(instructor)  
+               return Response(ser_data.data)
+        elif( request.method == 'PUT'):
+           ser_data = InstructorSerializer(instructor , data= request.data)
+           ser_data.is_valid(raise_exception=True)
+           ser_data.save()
+           return Response(ser_data.data)
+
+class StudentViewSet(CreateModelMixin, RetrieveModelMixin , UpdateModelMixin , GenericViewSet , ListModelMixin):
+    queryset = Student.objects.all()
+
+    serializer_class = StudentSerializer
+    
+    # def get_serializer_class(self):
+    #     if self.request.method in SAFE_METHODS:
+    #         return InstructorSerializer
+    #     return InstructorSerializerSensitive
+    
+    def create(self, request):
+        student = Student.objects.create(user_id=request.user)
+        
+        serializer = StudentSerializer(student, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+    
+    @action(detail = False , methods = ['GET', 'PUT'])
+    def me(self, request):
+        print("\n\n user id = " ,request.user.pk , "\n\n" , )
+        (student , is_created) = Student.objects.get_or_create(user=request.user)
+       
+        if  is_created :
+            return Response("student does not exist")
+        
+
+        print("\n\n id = " , student.pk , "\n\n", )
+        if( request.method == 'GET'):
+            print("\n\n i am in get method \n\n", )
+            ser_data = StudentSerializer(student)  
+            return Response(ser_data.data)
+        elif( request.method == 'PUT'):
+            print("\n\n i am in put method \n\n", )
+            ser_data = StudentSerializer(student , data= request.data)
+            ser_data.is_valid(raise_exception=True)
+            ser_data.save()
+            return Response(ser_data.data)
+            #permission_classes = [IsAuthenticated]
+    
+    
+    @action(detail = False , methods = ['GET'])
+    def courses(self, request):       
+        #print("user ::: "  ,request.user )
+        (student , is_created ) = Student.objects.get_or_create(user=request.user)
+        enrolled_courses =  Course.objects.filter(
+        id__in=Enrollment.objects.filter(student_id=student.id).values_list('course_id', flat=True)
+        ).select_related('instructor__user')
+        ser_data = CourseSerializer(enrolled_courses , many = True)
+        
+        is_sub = StudentSubscription.is_sub(student)
+        
+        if(is_sub):
+            ser_data = CourseSerializer(Course.objects.all().select_related('instructor__user') , many = True)
+        
+        return Response(ser_data.data)
+    
+#ReadOnlyModelViewSet
+class HomeCourseViewSet( ReadOnlyModelViewSet ):
+       
+    queryset = Course.objects.all().select_related('instructor')
+    serializer_class = CourseSerializer
+    # print("\n\nthis is the key\n\n:::::" , settings.STRIPE_SECRET_KEY)
+    
+class HomeCourseContentViewSet( ReadOnlyModelViewSet ):
+       
+       
+    queryset = CourseContent.objects.all()
+    serializer_class = UnEnrolledStudentCourseContentSerializer
+    
+    
+    
+    def get_queryset(self):
+            course_pk = self.kwargs['course_pk']
+                          
+            return CourseContent.objects.filter(course_id=course_pk)
+                
+class CourseViewSet( ModelViewSet ):
+       
+    queryset = Course.objects.all()
+    serializer_class = CourseSerializer
+    
+    def get_queryset(self):
+            instructor_pk = self.kwargs['instructor_pk']
+            return Course.objects.filter(instructor_id=instructor_pk)
+
+    def get_serializer_context( self):
+        #    print("\n\n\n\n**************************************" , self.kwargs['instructor_pk'],
+        #                  "\n\n\n\n**************************************")
+           return {'instructor_id' : self.kwargs['instructor_pk']}
+        
+class CourseContentViewSet( ModelViewSet ):
+       
+       
+    queryset = CourseContent.objects.all()
+    serializer_class = CourseContentWithQuizSerializer
+    
+    def get_queryset(self):
+            course_pk = self.kwargs['course_pk']
+            local_queryset = CourseContent.objects.filter(course_id=course_pk).prefetch_related('quizzes')
+            #if(user enrolled update the local_queryset to filter if it is free to watch
+            # return or not return every thing just the path )
+            return local_queryset
+        
+    
+    def get_serializer_context(self):
+           print("\n\n\n\n**************************************" , self.kwargs['course_pk'],
+                          "\n\n\n\n**************************************")
+           return {'course_id' : self.kwargs['course_pk']
+                  }
+           
+    def get_serializer(self, *args, **kwargs ):
+        
+        
+      try:
+        instructor_id = -1
+        
+        instructor = Instructor.objects.filter(user = self.request.user).last()
+        
+        if(instructor):
+            instructor_id = instructor.pk
+        
+        course_id=self.kwargs['course_pk']
+                
+        is_instructor = Course.objects.filter(pk = course_id , instructor_id = instructor_id).exists()
+        
+        is_student_exist = Student.objects.filter(user = self.request.user).last()
+
+        is_subscribe = False
+        
+        is_enrolled = False
+        
+        if(is_student_exist):
+            is_enrolled = Enrollment.objects.filter(
+            student_id=  is_student_exist.pk  ,
+            course_id=course_id
+            ).exists()
+            
+            is_subscribe = StudentSubscription.is_sub( is_student_exist )
+        
+        if(is_instructor or is_enrolled or is_subscribe):
+            serializer_class = CourseContentSerializer
+            
+        else:
+            
+            serializer_class = UnEnrolledStudentCourseContentSerializer
+    
+        # Return an instance of the serializer, not the class itself
+        return serializer_class(*args, **kwargs, context=self.get_serializer_context())
+      except:
+          return Response("we get an error retry with proper arguments!") 
+    
+     #def save_progress       
+           
+class QuizViewSet( ModelViewSet ):
+       
+    queryset = Quiz.objects.all()
+    serializer_class = QuizSerializer
+    
+    def get_queryset(self):
+
+            course_content_pk = self.kwargs['course_content_pk']
+            
+            return Quiz.objects.filter(course_content=course_content_pk)
+        
+    
+    def get_serializer_context(self):
+        #    print("\n\n\n\n**************************************" , self.kwargs['instructor_pk'],
+        #                  "\n\n\n\n**************************************")
+           return {'course_content_id' : self.kwargs['course_content_pk']
+                  }          
+                
+class QuizViewQuestionViewSet( ModelViewSet ):
+       
+    queryset = QuizQuestion.objects.all()
+    serializer_class = QuizQuestionSerializer
+    
+    def get_queryset(self):
+            quiz_pk = self.kwargs['quiz_pk']
+            q= QuizQuestion.objects.filter(quiz=quiz_pk)
+            is_free = CourseContent.objects.get(pk = self.kwargs['course_content_pk']).is_free_preview
+            if (is_free):
+                return q
+            try:
+                 course_pk = self.kwargs['course_pk']
+                 student = Student.objects.get(user = self.request.user)
+                 course_pk = self.kwargs['course_pk']
+                 
+                 is_enrolled = Enrollment.objects.filter(
+                 student_id = student.pk  , 
+                 course_id = course_pk 
+                 ).exists()
+                 
+                 is_sub = StudentSubscription.is_sub(student)
+                 if is_enrolled or is_sub:
+                    return q
+                 return QuizQuestion.objects.none()
+            except:
+                return QuizQuestion.objects.none()
+            return QuizQuestion.objects.filter(quiz=quiz_pk)
+        
+    
+    def get_serializer_context(self):
+        #    print("\n\n\n\n**************************************" , self.kwargs['instructor_pk'],
+        #                  "\n\n\n\n**************************************")
+           return {'quiz_id' : self.kwargs['quiz_pk'] }      
+
+class ForumPostViewSet( ModelViewSet ):
+       
+    permission_classes = [IsAuthenticated]
+    queryset = ForumPost.objects.all()
+    serializer_class = ForumPostSerializer
+    
+    def get_queryset(self):
+            course_pk = self.kwargs['course_pk']
+            return ForumPost.objects.filter(course=course_pk)
+        
+    
+    def get_serializer_context(self):
+        #    print("\n\n\n\n**************************************" , self.kwargs['instructor_pk'],
+        #                  "\n\n\n\n**************************************")
+           return {'course_id' : self.kwargs['course_pk'] } 
+       
+    
+    def create(self, request, *args, **kwargs):
+        # Get the instructor from the URL
+        course_pk = self.kwargs['course_pk']
+        user_id = request.user.id
+        
+        course = Course.objects.get(pk=course_pk)
+        user = User.objects.get(pk=user_id)
+        post = ForumPost.objects.create(course=course, user=user)
+        
+        
+        # instructor = Instructor.objects.create(user_id=request.user.id)
+        # serializer = InstructorSerializerSensitive(instructor, data=request.data)
+        # serializer.is_valid(raise_exception=True)
+        # serializer.save()
+        # return Response(serializer.data)
+        
+        # Get the serializer
+        serializer = ForumPostSerializer(post , data=request.data)
+        
+        # Validate the data
+        serializer.is_valid(raise_exception=True)
+        
+        serializer.save()
+        
+        return Response(serializer.data)
+        
+
+#######"" for student
+class StudentQuizQuestionViewSet( ReadOnlyModelViewSet ):
+       
+    queryset = QuizQuestion.objects.all()
+    
+    serializer_class = StudentQuizQuestionSerializer
+    
+    def get_queryset(self):
+
+            quiz_pk = self.kwargs['quiz_pk']
+            q= QuizQuestion.objects.filter(quiz=quiz_pk)
+            is_free = CourseContent.objects.get(pk = self.kwargs['course_content_pk']).is_free_preview
+            if (is_free):
+                return q
+            try:
+                 student = Student.objects.get(user = self.request.user)
+                 course_pk = self.kwargs['course_pk']
+                 is_enrolled = Enrollment.objects.filter(
+                 student_id = student.pk  , 
+                 course_id = course_pk 
+                 ).exists()
+                 is_sub = StudentSubscription.is_sub(student)
+                 if is_enrolled or is_sub:
+                    return q
+                 return QuizQuestion.objects.none()
+            except:
+                return QuizQuestion.objects.none()               
+
+class StudentCourseViewSet( ReadOnlyModelViewSet ):
+       
+    queryset = Course.objects.all()
+    serializer_class = StudentCourseSerializer
+    
+    def get_queryset(self):
+            student_pk = self.kwargs['student_pk']
+            
+            if(StudentSubscription.is_sub(None , student_pk)):
+                return Course.objects.all()
+            
+            return  Course.objects.filter(
+        id__in=Enrollment.objects.filter(student_id=student_pk).values_list('course_id', flat=True)
+        ).select_related('instructor__user')
+            
+    def get_serializer_context(self):
+        # Pass additional context to the serializer
+        context = super().get_serializer_context()
+        context['student_pk'] = self.kwargs['student_pk']  # Pass student_pk to the serializer
+        return context        
+            
+    @action(detail = True , methods = ['GET'])
+    def progress(self, request , student_pk, pk):       
+        student_id = student_pk
+        course_id = pk        
+        progress = StudentProgress.objects.filter(student = student_id , course = course_id)
+        ser_data = StudentProgressSerializer(progress , many = True)  
+        return Response(ser_data.data)
+    
+    
+    @action(detail = True , methods = ['GET'])
+    def certificate(self, request , student_pk, pk):   
+        content_count = CourseContent.objects.filter(course_id=pk).count()
+    
+        
+
+        watched_content_count = StudentProgress.objects.filter(
+            student_id=student_pk,
+            course_id=pk
+        ).count()
+
+        percentage = 0
+        if(watched_content_count>0):
+            percentage = (watched_content_count / content_count) * 100
+        
+        
+        if(percentage < 100):
+            return Response("You can't get a certificate if you did not complete the course")
+                
+        exist  =  Certificate.objects.filter(
+            student_id= student_pk,
+            course_id = pk
+        ).exists()
+        
+        certificate = Certificate.objects.none()
+        
+        if exist:
+         print("\nexist\n")
+         certificate = Certificate.objects.get(
+            student_id= student_pk,
+            course_id = pk
+         )
+         
+         
+        else:
+            print("\ncreate\n")
+            certificate_number = str(uuid4())[:8]
+            certificate = Certificate.objects.create(
+            student_id= student_pk,
+            course_id = pk,
+            certificate_number=certificate_number
+         )
+        
+        ser_data = CertificateSerializer(certificate )
+        
+        return Response(ser_data.data)
+        #print("\n\nthe is the percentage= " ,percentage , "\n\n" ) 
+        # student_id = student_pk
+        # course_id = pk        
+        # progress = StudentProgress.objects.filter(student = student_id , course = course_id)
+        # ser_data = StudentProgressSerializer(progress , many = True)  
+        #return Response(percentage)
+    
+class StudentCourseContentViewSet( ReadOnlyModelViewSet ):
+       
+    #permisionclass = IsRightStudent
+    queryset = CourseContent.objects.all()
+    serializer_class = StudentCourseContentSerializer
+    
+    
+    
+    def get_queryset(self):
+            course_pk = self.kwargs['course_pk']            
+            local_queryset = CourseContent.objects.filter(course_id=course_pk)
+            return local_queryset
+        
+    
+    def get_serializer_context(self):
+        # Pass additional context to the serializer
+        context = super().get_serializer_context()
+        context['student_pk'] = self.kwargs['student_pk']  # Pass student_pk to the serializer
+        return context
+    
+    
+    def get_serializer(self, *args, **kwargs ):
+        
+        student_id = self.kwargs['student_pk']
+        
+        print("student :: " , student_id)
+        
+        is_sub = StudentSubscription.is_sub(None , student_id)
+        
+        print("sub :: " , is_sub)
+        
+        is_enrolled = Enrollment.objects.filter(
+            student_id=self.kwargs['student_pk'],
+            course_id=self.kwargs['course_pk']
+            ).exists()
+         
+         
+        serializer_class = (
+        StudentCourseContentSerializer if is_enrolled or is_sub
+        else UnEnrolledStudentCourseContentSerializer
+        )
+    
+        # Return an instance of the serializer, not the class itself
+        return serializer_class(*args, **kwargs, context=self.get_serializer_context())
+         
+    
+    
+    @action(detail = True , methods = ['POST'])
+    def progress(self, request , pk , student_pk , course_pk):  
+        
+       try:      
+        student= Student.objects.get (pk = student_pk)
+        course= Course.objects.get (pk =course_pk)
+        course_content = CourseContent.objects.get (pk = pk)
+        
+        is_enrolled_in_course = Enrollment.objects.filter(
+           student = student  , 
+           course = course
+            ).exists()
+        
+        if(not is_enrolled_in_course):
+            return Response("you are not enrolled in this course")
+        
+        is_enrolled = StudentProgress.objects.filter(
+           student = student  , 
+           course = course , watched_course_content = course_content
+            ).exists()
+        if is_enrolled:
+            return Response("you already save this progress")
+        
+        # print(student.__str__)
+        # print(course.__str__)
+        # print(course_content.__str__)
+        progress = StudentProgress.objects.create(student = student  , 
+                    course = course , watched_course_content = course_content)
+        ser_data = StudentProgressSerializer(progress)  
+        return Response(ser_data.data)
+    
+       except Student.DoesNotExist:
+        return Response({"error": "Student not found."}, status=404)
+       except Course.DoesNotExist:
+           return Response({"error": "Course not found."}, status=404)
+       except CourseContent.DoesNotExist:
+           return Response({"error": "Course content not found."}, status=404)
+       except Exception as e:
+        return Response({"error": str(e)}, status=400)
+    
+class StudentQuizViewSet( ReadOnlyModelViewSet ):
+       
+    queryset = Quiz.objects.all()
+    serializer_class = StudentQuizSerializer
+    
+    def get_queryset(self):
+            course_content_pk = self.kwargs['course_content_pk']
+            return Quiz.objects.filter(course_content=course_content_pk)
+                        
+class ForumPostCommentViewSet( ModelViewSet ):
+       
+    permission_classes = [IsAuthenticated]
+    queryset = ForumPostComment.objects.all()
+    serializer_class = ForumPostCommentSerializer
+    
+    def get_queryset(self):
+            post_pk = self.kwargs['post_pk']
+            return ForumPostComment.objects.filter(post=post_pk)
+        
+    
+    def get_serializer_context(self):
+           return {'post_id' : self.kwargs['post_pk'] } 
+       
+    
+    def create(self, request, *args, **kwargs):
+        # Get the instructor from the URL
+        post_pk = self.kwargs['post_pk']
+        user_id = request.user.id
+        post = ForumPost.objects.get(pk=post_pk)
+        user = User.objects.get(pk=user_id)
+        post = ForumPostComment.objects.create(post=post, user=user)
+
+        serializer = ForumPostCommentSerializer(post , data=request.data)
+        
+        serializer.is_valid(raise_exception=True)
+        
+        serializer.save()
+        
+        return Response(serializer.data)
+                
+class SuccessView(TemplateView , APIView  ):
+    
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    template_name = "success.html"
+    
+    
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Add student ID to the context
+        context['student'] =  Student.objects.get(user =  self.request.user)
+        return context
+
+class SuccessSubView(TemplateView , APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    template_name = "sub_success.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        print("user that will go oto html :::: " , self.request.user  ) 
+        
+        # Add student ID to the context
+        context['student'] =  Student.objects.get(user =  self.request.user)
+        return context
+
+class CancelView(TemplateView, APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    template_name = "cancel.html"
+    
+class CreateCheckoutSessionForPaymentView(APIView):
+    
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    def get(self, request, course_pk):
+        try:
+            # Ensure Stripe is configured
+            
+            print("Auth header:", request.headers.get('Authorization'))
+            print("User:", request.user)
+            print("Is authenticated:", request.user.is_authenticated)
+            
+            
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            
+            # Retrieve the course
+            course = get_object_or_404(Course, pk=course_pk)
+            print('this is user : ' , request.user)
+            student, _ = Student.objects.get_or_create(user=request.user)
+            
+            is_enrolled = Enrollment.objects.filter(
+            student_id=student.pk,
+            course_id=course_pk
+            ).exists()
+            
+            
+            if is_enrolled :
+                return JsonResponse({'error': 'you already purchased this course'}, status=400)            
+            
+            # Validate course price
+            if not course.price:
+                return JsonResponse({'error': 'Course price is not set'}, status=400)
+            
+            # Convert price to cents
+            price_in_cents = int(float(course.price) * 100)
+            
+            
+            
+            # Create a Payment Order
+            payment_order = Payment_Order.objects.create(
+                student=student,
+                course=course
+            )
+            # host the image so in checkout page stripe get the picture because it accept only hosted pictures
+            
+            thumbnail_url = 'https://via.placeholder.com/600x400.png?text=Course+Image'
+            
+            if course.thumbnail:
+                local_image_path = os.path.join(settings.MEDIA_ROOT, course.thumbnail.name)
+                
+                # Upload to ImgBB dynamically
+                with open(local_image_path, "rb") as image_file:
+                    response = requests.post(
+                        "https://api.imgbb.com/1/upload",
+                        data={
+                            "key": "6830c67c69dc80a7b7b461d29ac14a7a",  # Replace with your ImgBB API key
+                        },
+                        files={
+                            "image": image_file
+                        }
+                    )
+                    response_data = response.json()
+                    if response_data['status'] == 200:
+                        thumbnail_url = response_data['data']['url']  # Get public image URL
+                    else:
+                        thumbnail_url = "https://via.placeholder.com/600x400.png?text=Course+Image"  # Fallback image
+            else:
+                thumbnail_url = "https://via.placeholder.com/600x400.png?text=Course+Image"
+
+                checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[
+                    {
+                        'price_data': {
+                            'currency': 'usd',
+                            'unit_amount': price_in_cents,
+                            'product_data': {
+                                'name': course.title,
+                                'images':[thumbnail_url], 
+                            },
+                        },
+                        'quantity': 1,
+                    },
+                ],
+                metadata={
+                    "course_id": course.pk,
+                    "course_title": course.title,
+                    "payment_order_id": payment_order.pk,
+                    "student_id": student.pk
+                },
+                mode='payment',
+                success_url=request.build_absolute_uri('/success/'),
+                cancel_url=request.build_absolute_uri(f'/courses/{course_pk}'),
+            )
+            
+            print("\n\nthis is the last line in stripe checkout\n\n")
+            
+            # Redirect directly to Stripe Checkout
+            return HttpResponseRedirect(checkout_session.url)
+        
+        except Exception as e:
+            # Log the error and redirect to course details with an error message
+            return JsonResponse({
+                'error': f'Checkout failed: {str(e)}'
+            }, status=500)
+
+
+logger = logging.getLogger(__name__)
+@method_decorator(csrf_exempt, name='dispatch')  # Disable CSRF protection for webhooks
+class StripeWebhookView(View):
+    """
+    Handles webhook events from Stripe, processing course purchases
+    and managing user enrollments
+    """
+    
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize Stripe configuration when the view is instantiated
+        Ensures Stripe API key and webhook secret are set up
+        """
+        super().__init__(*args, **kwargs)  # Call parent class initializer
+        # Set Stripe API key from Django settings
+        stripe.api_key = settings.STRIPE_SECRET_KEY
+        # Retrieve Stripe webhook endpoint secret from settings
+        self.endpoint_secret = settings.STRIPE_ENDPOINT_SECRET
+
+    def post(self, request, *args, **kwargs):
+        """
+        Primary method to handle incoming POST requests from Stripe webhook
+        
+        Verifies webhook signature and routes to appropriate event handler
+        """
+        # Raw payload data from the webhook request
+        
+        print("\n=== WEBHOOK REQUEST RECEIVED ===")
+        #print("Headers:", request.headers)
+        payload = request.body
+        #print("Raw Payload:", payload.decode('utf-8'))
+        
+        # payload = request.body
+        # print("\n\n we get this payload = " ,payload , "\n\n" , )
+        # Stripe signature header for verification
+        sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+        #print("\n\n we get this sig_header = " ,sig_header , "\n\n" , )
+        # print("\n\nPayload received:", payload)
+        # print("\n\nSignature header:", sig_header)
+
+        try:
+            
+            print("\n\nthis is my endpoint : " ,self.endpoint_secret,"\n\n")
+            # Verify the webhook signature to prevent fraudulent requests
+            event = stripe.Webhook.construct_event(
+                payload,  # Raw request body
+                sig_header,  # Stripe-provided signature
+                self.endpoint_secret  # Our stored webhook secret
+            )
+            
+            if event.type == 'checkout.session.completed':
+                session = event['data']['object']
+                # Check if this is a course purchase or subscription
+                if session.get('metadata', {}).get('course_id'):
+                    print("\n\ni will go to handle_checkout_session_completed\n\n")
+                    return self.handle_checkout_session_completed(event)
+                else:
+                    print("\n\ni will go to handle_checkout_session_subscription_completed\n\n")
+                    return self.handle_checkout_session_subscription_completed(event)
+            
+            return HttpResponse(status=200)
+            
+        except ValueError as e:
+            # Logging and handling invalid payload
+            print(f"Invalid payload: {e}")
+            logger.error(f"Invalid payload: {e}")
+            return HttpResponse(status=400)  # Bad request
+        except stripe.error.SignatureVerificationError as e:
+            # Logging and handling signature verification failure
+            print(f"Invalid signature: {e}")
+            logger.error(f"Invalid signature: {e}")
+            return HttpResponse(status=400)  # Bad request
+    
+    def _send_enrollment_email_confirmation(self, user : User, enrollment : Enrollment):
+        """
+        Send an email confirmation of course enrollment
+        """
+        try:
+            # Use Django's send_mail to send confirmation email
+            send_mail(
+                f'Enrollment Confirmed: {enrollment.course.title}',  # Email subject
+                f'Congratulations! You have been enrolled in {enrollment.course.title}.',  # Email body
+                settings.DEFAULT_FROM_EMAIL,  # Sender email
+                [user.email],  # Recipient email
+                fail_silently=False,  # Raise exceptions for email sending errors
+            )
+        except Exception as e:
+            # Log any email sending errors
+            logger.error(f"Failed to send confirmation email: {e}")
+
+    def handle_checkout_session_completed(self, event):
+        """
+        Process a completed checkout session
+        Creates StripePayment and Enrollment
+        """
+        session = event['data']['object']
+        
+        print("\n\nwe are in handel session completed\n\n" , )
+        
+        try:
+            # Extract metadata from the session
+            #  metadata={
+            #         "course_id": course.pk,
+            #         "course_title": course.title,
+            #         "payment_order_id": payment_order.pk,
+            #         "student_id": student.pk
+            #     },
+            course_id = session['metadata'].get('course_id')
+            payment_order_id = session['metadata'].get('payment_order_id')
+            student_id = session['metadata'].get('student_id')
+            
+            print("\n\n course id = " ,course_id , "\n\n" , )
+            print("\n\n payment order id = " ,payment_order_id , "\n\n" , )
+            print("\n\n student id = " ,student_id , "\n\n" , )
+            
+            
+            # Retrieve related objects
+            course = Course.objects.get(pk=course_id)
+            student = Student.objects.get(pk=student_id)
+            payment_order = Payment_Order.objects.get(pk=payment_order_id)
+            
+            print("\n\n sec course id = " ,course.pk , "\n\n" , )
+            print("\n\n sec payment order id = " ,payment_order.pk , "\n\n" , )
+            print("\n\n sec student id = " ,student.pk , "\n\n" , )
+            
+            # Create StripePayment record
+            stripe_payment = StripePayment.objects.create(
+                student=student,
+                stripe_charge_id=session['payment_intent'],
+                paid_amount=session['amount_total'] / 100,  # Convert cents to dollars
+                course_price=course.price,
+                payment_order=payment_order,
+                timestamp=timezone.now()
+            )
+            
+            print("\n\n sec stripe payment id = " ,stripe_payment.pk , "\n\n" , )
+            # Create Enrollment
+            enrollment = Enrollment.objects.create(
+                student=student,
+                course=course,
+                payment=payment_order
+            )
+            
+            print("\n\n sec enrollment id = " ,enrollment.pk , "\n\n" , )
+            
+            self._send_enrollment_email_confirmation( student.user , enrollment)
+            
+            logger.info(f"Successful enrollment for student {student.__str__} in course {course.title}")
+            
+            return HttpResponse(status=200)
+        
+        except Exception as e:
+            logger.error(f"Webhook processing error: {e}")
+            return HttpResponse(status=500)
+
+    def _send_subscriber_email_confirmation(self, user : User):
+        """
+        Send an email confirmation of course enrollment
+        """
+        try:
+            # Use Django's send_mail to send confirmation email
+            send_mail(
+                f'subscription Confirmed',  # Email subject
+                f'Congratulations! You have been subscribe in dz skills.',  # Email body
+                settings.DEFAULT_FROM_EMAIL,  # Sender email
+                [user.email],  # Recipient email
+                fail_silently=False,  # Raise exceptions for email sending errors
+            )
+        except Exception as e:
+            # Log any email sending errors
+            logger.error(f"Failed to send confirmation email: {e}")
+
+    def handle_checkout_session_subscription_completed(self, event):
+        """
+        Process a completed checkout session
+        Creates StripePayment and Enrollment
+        
+        """
+        
+        print("\n\nwe are in handle_checkout_session_subscription_completed session completed\n\n" , )
+        session = event['data']['object']
+        
+        
+        
+        try:
+            # Extract metadata from the session
+            #  metadata={
+            #         "course_id": course.pk,
+            #         "course_title": course.title,
+            #         "payment_order_id": payment_order.pk,
+            #         "student_id": student.pk
+            #     },
+            print("\n1\n")         
+            student_id = session.get('metadata', {}).get('student_id')
+            print("\n3\n")
+            print("\n\n student id = " ,student_id , "\n\n" , )
+            
+            
+            # Retrieve related objects
+            student = Student.objects.get(pk=student_id)
+            
+            print("\n\n sec student id = " ,student.pk , "\n\n" , )
+            
+            
+
+            has_sub = StudentSubscription.is_sub(student)
+            print("\n4\n")            
+            duration = int( getattr(settings, 'SUBSCRIPTION', {}).get('DURATION'))
+            print("\n5\n")
+            start_date = timezone.now()
+            print("\n6\n")
+            end_date = (timezone.now() + timedelta(days=duration))
+            print("\n7\n")
+            
+            if(has_sub):
+                sub = StudentSubscription.objects.get(
+                student=student
+                )
+                print("\n8\n")
+                end_date = sub.end_date + timedelta(days=duration)
+                print("\n9\n")
+                sub.delete()
+            
+            print("\n10\n")
+            # Create StripePayment record
+            subscription = StudentSubscription.objects.create(
+                student=student,
+                start_date = start_date,
+                end_date = end_date
+                
+            )
+            
+            print("\n\n sec sub id = " ,subscription.pk , "\n\n" , )
+            # Create Enrollment
+
+            
+            
+            self._send_subscriber_email_confirmation( student.user )
+            
+            logger.info(f"Successful subscribe for student {student.__str__}")
+            
+            return HttpResponse(status=200)
+        
+        except Exception as e:
+            logger.error(f"Webhook processing error: {e}")
+            return HttpResponse(status=500)
+
+class CreateCheckoutSessionForSubscriptionView(APIView):
+    
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    def get(self, request ,  student_pk):
+        try:
+            # Ensure Stripe is configured
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            
+            print("All settings:", dir(settings)) 
+            
+            student, _ = Student.objects.get_or_create(user=request.user)
+            
+            
+            
+            print("Subscription settings:", getattr(settings, 'SUBSCRIPTION', {}))
+            price = getattr(settings, 'SUBSCRIPTION', {}).get('PRICE')
+            print("Price retrieved:", price)
+            
+            if price == '0':
+                return JsonResponse({'error': 'price is not set in settings'}, status=400)
+            
+            # Validate course price
+            if not price:
+                return JsonResponse({'error': 'price is not set'}, status=400)
+            
+            # Convert price to cents
+            price_in_cents = int(float(price) * 100)
+
+            checkout_session = checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[
+                    {
+                        'price_data': {
+                            'currency': 'usd',
+                            'unit_amount': price_in_cents,
+                            'product_data': {
+                                'name': 'Dz Skills Subscription',
+                            },
+                        },
+                        'quantity': 1,
+                    },
+                ],
+                metadata={
+                    "student_id": student.pk
+                },
+                mode='payment',
+                success_url=request.build_absolute_uri('/sub_success/'),
+                cancel_url=request.build_absolute_uri(f'/courses/'),
+            )
+            
+            print("\n\nthis is the last line in stripe checkout\n\n")
+            
+            print("\n\n this student id from ck sub == " , student.pk ,"\n\n")
+            # Redirect directly to Stripe Checkout
+            return HttpResponseRedirect(checkout_session.url)
+        
+        except Exception as e:
+            # Log the error and redirect to course details with an error message
+            return JsonResponse({
+                'error': f'Checkout failed: {str(e)}'
+            }, status=500)

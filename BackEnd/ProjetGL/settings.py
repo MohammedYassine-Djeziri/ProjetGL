@@ -10,10 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+from datetime import timedelta
 import os
 from pathlib import Path
 import environ
-
 
 
 # Initialize environment variables
@@ -37,6 +37,11 @@ else:
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+environ.Env.read_env(BASE_DIR / ".env")
+CHARGILY_KEY = env("CHARGILY_KEY")
+CHARGILY_SECRET = env("CHARGILY_SECRET")
+CHARGILY_URL = "https://pay.chargily.net/test/api/v2/"
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -57,9 +62,14 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
+    'rest_framework',
+    'djoser',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'debug_toolbar'
+    'debug_toolbar',
+    'chargily_pay',
+    'App'
+    
 ]
 
 INTERNAL_IPS = [
@@ -78,6 +88,27 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "debug_toolbar.middleware.DebugToolbarMiddleware",  
 ]
+
+
+
+REST_FRAMEWORK = {
+
+    'COERCE_DECIMAL_TO_STRING' : False,
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication'
+    ),
+}
+
+
+SIMPLE_JWT = {
+    'AUTH_HEADER_TYPES': ('JWT',),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=120),  # Token expiration
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=120),
+    'ROTATE_REFRESH_TOKENS': True,  # Generate new refresh token on each use
+    'BLACKLIST_AFTER_ROTATION': True,  # Prevent reuse of refresh tokens
+}
+
 
 ROOT_URLCONF = 'ProjetGL.urls'
 
@@ -114,6 +145,9 @@ DATABASES = {
     }
 }
 
+
+
+
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
@@ -131,6 +165,11 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+
+
+AUTH_USER_MODEL = 'App.User'
 
 
 # Internationalization
@@ -154,3 +193,64 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+DJOSER = {
+    'SERIALIZERS': {
+        'user_create': 'App.serializers.UserCreateSerializers',
+        'user_update': 'App.serializers.UpdateUserSerializers',  # For updating user
+        'user': 'App.serializers.UserSerializers',  # For retrieving user details
+        'current_user': 'App.serializers.UserSerializers',  # For `me` endpoint
+    }
+}
+
+ALLOWED_HOSTS = ['*']
+
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/3.1/howto/static-files/
+
+STATIC_URL = '/static/'
+
+STRIPE_PUBLIC_KEY = "pk_test_51QVfiuFMEGS2l5ekxu8QjzCqfplUWTO71fEHNms0KG5ww3y2hBuwCsh6EmArmqd3tEt57bbDHFDnI8Wm01fYylkz00eoTfR1Bi"
+STRIPE_SECRET_KEY = "sk_test_51QVfiuFMEGS2l5ekwMagVO2m2wkeFRXzDUexLNJH0Mc8Ak7iWUHwhhnswO84f092iRNTYWrJSdmHcCwQwuvGrqzh00n0BXjstq"
+STRIPE_WEBHOOK_SECRET = ""
+
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+IMGBB_API_KEY = '6830c67c69dc80a7b7b461d29ac14a7a'
+
+STRIPE_WEBHOOK_SECRET = ' whsec_54090a7eb164b311951aadd3fa9946a88e8363cd639ccd36c198a3490cdd0950'
+
+DEFAULT_FROM_EMAIL = 'ostora@gmail.com'
+
+# settings.py
+STRIPE_ENDPOINT_SECRET = 'whsec_54090a7eb164b311951aadd3fa9946a88e8363cd639ccd36c198a3490cdd0950'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'stripe': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        }
+    }
+}
+
+
+SUBSCRIPTION = {
+    'PRICE': '100',
+    'DURATION': '120',
+}
