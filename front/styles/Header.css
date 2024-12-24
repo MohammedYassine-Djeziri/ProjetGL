@@ -1,0 +1,43 @@
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #0a1d37;
+    color: white;
+    padding: 16px;
+  }
+  
+  .logo {
+    font-size: 24px;
+    font-weight: bold;
+  }
+  
+  .select {
+    background-color: #0a1d37;
+    color: #00ff91;
+    border: 1px solid #00ff91;
+    border-radius: 4px;
+    padding: 8px 12px;
+  }
+  
+  .buttons {
+    display: flex;
+    gap: 16px;
+  }
+  
+  .btn-login {
+    padding: 8px 16px;
+    border: 1px solid #00ff91;
+    color: white;
+    background: transparent;
+    border-radius: 4px;
+  }
+  
+  .btn-signup {
+    padding: 8px 16px;
+    background-color: #00ff91;
+    color: #0a1d37;
+    font-weight: bold;
+    border-radius: 4px;
+  }
+  
