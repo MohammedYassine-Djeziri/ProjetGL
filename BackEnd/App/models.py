@@ -326,10 +326,30 @@ class Payment_Order(models.Model):
         return f"Payment {self.student.__str__} - {self.course}"
     
 
+class StripePayment(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.PROTECT, related_name='stripe_payments')
+    stripe_charge_id = models.CharField(max_length=100)
+    paid_amount = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        validators=[MinValueValidator(0)]
+    )
+    course_price= models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        validators=[MinValueValidator(0)],
+        null=True
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.stripe_charge_id
+
+
 class Enrollment(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='course_enrollments')
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='student_enrollments')
-    payment = models.OneToOneField(Payment_Order, on_delete=models.CASCADE, related_name='enrollment_pay')
+    payment = models.OneToOneField(StripePayment, on_delete=models.CASCADE, related_name='enrollment_pay')
     enrolled_at = models.DateTimeField(auto_now_add=True)
     def __str__(self):
         return f"Payment {self.student.__str__} - {self.course.title}"
@@ -384,23 +404,3 @@ class AffiliateEarning(models.Model):
         return f"Affiliate Earning - {self.amount}"
     
 # models.py
-class StripePayment(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.PROTECT, related_name='stripe_payments')
-    stripe_charge_id = models.CharField(max_length=100)
-    paid_amount = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        validators=[MinValueValidator(0)]
-    )
-    course_price= models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        validators=[MinValueValidator(0)],
-        null=True
-    )
-    payment_order = models.ForeignKey(Payment_Order ,on_delete=models.PROTECT ,  null=False )
-
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return self.stripe_charge_id

@@ -14,6 +14,7 @@ from datetime import timedelta
 import os
 from pathlib import Path
 import environ
+from decouple import config
 
 
 # Initialize environment variables
@@ -29,19 +30,15 @@ environ.Env.read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if os.getenv('DOCKERIZED'):  # Set this variable in your Docker container
-    env_file = os.path.join(BASE_DIR, '..', '.env')  # Use Projet_GL/.env
+    env_file = os.path.join(BASE_DIR, '..', '.env')  # Using Projet_GL/.env
 else:
-    env_file = os.path.join(BASE_DIR, '.env')  # Use BackEnd/.env for local dev
+    env_file = os.path.join(BASE_DIR, '.env')  # Using BackEnd/.env for local dev
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 environ.Env.read_env(BASE_DIR / ".env")
-CHARGILY_KEY = env("CHARGILY_KEY")
-CHARGILY_SECRET = env("CHARGILY_SECRET")
-CHARGILY_URL = "https://pay.chargily.net/test/api/v2/"
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -53,6 +50,17 @@ SECRET_KEY = 'django-insecure-#n0-tby7x^cj%kf(5t2u+(#&3-^7j76(cp_lod*v0#2k7=1wqp
 DEBUG = True
 
 ALLOWED_HOSTS = []
+
+# env variables
+
+# Stripe configuration
+STRIPE_PUBLIC_KEY = env.str('STRIPE_PUBLIC_KEY')
+STRIPE_SECRET_KEY = env.str('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = env.str('STRIPE_WEBHOOK_SECRET')
+
+# IMGBB configuration
+IMGBB_API_KEY = env.str('IMGBB_API_KEY')
+DEFAULT_THUMBNAIL_URL = env.str('DEFAULT_THUMBNAIL_URL')
 
 
 # Application definition
@@ -67,9 +75,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'debug_toolbar',
-    'chargily_pay',
-    'App'
-    
+    'App',
+    'drf_spectacular',
 ]
 
 INTERNAL_IPS = [
@@ -98,8 +105,24 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication'
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
+SPECTACULAR_SETTINGS = {
+    'TITLE' : 'Django DzSkills',
+}
+
+
+# SWAGGER_SETTINGS = {
+#     'USE_SESSION_AUTH': False,
+#     'SECURITY_DEFINITIONS': {
+#         'Bearer': {
+#             'type': 'apiKey',
+#             'name': 'Authorization',
+#             'in': 'header'
+#         }
+#     }
+# }
 
 SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('JWT',),
@@ -111,6 +134,10 @@ SIMPLE_JWT = {
 
 
 ROOT_URLCONF = 'ProjetGL.urls'
+
+
+
+
 
 TEMPLATES = [
     {
@@ -209,20 +236,13 @@ ALLOWED_HOSTS = ['*']
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
-STATIC_URL = '/static/'
-
-STRIPE_PUBLIC_KEY = "pk_test_51QVfiuFMEGS2l5ekxu8QjzCqfplUWTO71fEHNms0KG5ww3y2hBuwCsh6EmArmqd3tEt57bbDHFDnI8Wm01fYylkz00eoTfR1Bi"
-STRIPE_SECRET_KEY = "sk_test_51QVfiuFMEGS2l5ekwMagVO2m2wkeFRXzDUexLNJH0Mc8Ak7iWUHwhhnswO84f092iRNTYWrJSdmHcCwQwuvGrqzh00n0BXjstq"
-STRIPE_WEBHOOK_SECRET = ""
 
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
-IMGBB_API_KEY = '6830c67c69dc80a7b7b461d29ac14a7a'
 
-STRIPE_WEBHOOK_SECRET = ' whsec_54090a7eb164b311951aadd3fa9946a88e8363cd639ccd36c198a3490cdd0950'
 
 DEFAULT_FROM_EMAIL = 'ostora@gmail.com'
 
@@ -254,3 +274,11 @@ SUBSCRIPTION = {
     'PRICE': '100',
     'DURATION': '120',
 }
+
+
+
+
+
+
+
+

@@ -26,11 +26,10 @@ class UpdateUserSerializers(dj_user):
 
 
 class InstructorSerializer(serializers.ModelSerializer):#read_only=True
-    user_id = serializers.IntegerField(read_only=True)
     user = UserSerializers(read_only=True)
     class Meta:
         model = Instructor
-        fields = ['id',  'user_id', 'biography' , 'user']
+        fields = ['id',   'biography' , 'user']
 
 
 class InstructorSerializerSensitive(serializers.ModelSerializer):

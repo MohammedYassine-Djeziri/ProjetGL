@@ -9,7 +9,7 @@ from .serializers import (InstructorSerializer, StudentSerializer , CourseSerial
                           StudentCourseContentSerializer , StudentQuizSerializer ,
                           StudentQuizQuestionSerializer ,StudentProgressSerializer, CourseContentWithQuizSerializer,
                           StudentCourseSerializer , UnEnrolledStudentCourseContentSerializer , CertificateSerializer)
-from rest_framework.permissions import IsAuthenticated , SAFE_METHODS
+from rest_framework.permissions import IsAuthenticated , SAFE_METHODS 
 from rest_framework.viewsets import GenericViewSet , ReadOnlyModelViewSet , ModelViewSet 
 from django.views import View
 from rest_framework.decorators import action
@@ -39,15 +39,12 @@ from django.utils import timezone
 from datetime import timedelta
 from django.urls import reverse_lazy
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from .permissions import IsCourseInstructorOrReadOnly , IsInstructorOrReadOnly , IsStudent
 
 class InstructorViewSet(ListModelMixin , CreateModelMixin, RetrieveModelMixin , UpdateModelMixin , GenericViewSet):
     queryset = Instructor.objects.all()
     serializer_class = InstructorSerializer
-    
-    def get_serializer_class(self):
-        if self.request.method in SAFE_METHODS:
-            return InstructorSerializer
-        return InstructorSerializerSensitive
+    permission_classes = [IsAuthenticated , IsInstructorOrReadOnly]
     
     def create(self, request):
         instructor = Instructor.objects.create(user_id=request.user.id)
@@ -55,11 +52,21 @@ class InstructorViewSet(ListModelMixin , CreateModelMixin, RetrieveModelMixin , 
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+    def get_permissions(self):
+        if(self.request.method == 'POST'):
+            return [IsAuthenticated()]
+        else:
+            return [IsAuthenticated() , IsInstructorOrReadOnly()]
+    
+    def get_serializer_class(self):
+        if self.request and self.request.method in SAFE_METHODS:
+            return InstructorSerializer
+        return InstructorSerializerSensitive
     
     
-    @action(detail = False , methods = ['GET', 'PUT'])
+    @action(detail = False , methods = ['GET', 'PUT'] , permission_classes = [IsAuthenticated])
     def me(self, request):
-       print(request.user.id)
        (instructor , is_created) = Instructor.objects.get_or_create(user=request.user.id)
        if not is_created :
         if( request.method == 'GET'):
@@ -71,40 +78,37 @@ class InstructorViewSet(ListModelMixin , CreateModelMixin, RetrieveModelMixin , 
            ser_data.save()
            return Response(ser_data.data)
 
-class StudentViewSet(CreateModelMixin, RetrieveModelMixin , UpdateModelMixin , GenericViewSet , ListModelMixin):
+class StudentViewSet(  GenericViewSet, CreateModelMixin,  RetrieveModelMixin,  UpdateModelMixin):
     queryset = Student.objects.all()
-
     serializer_class = StudentSerializer
+    permission_classes = [IsAuthenticated , IsStudent]
     
-    # def get_serializer_class(self):
-    #     if self.request.method in SAFE_METHODS:
-    #         return InstructorSerializer
-    #     return InstructorSerializerSensitive
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsStudent()]
     
-    def create(self, request):
-        student = Student.objects.create(user_id=request.user)
         
+    def create(self, request):
+        student = Student.objects.create(user=request.user)
         serializer = StudentSerializer(student, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
     
-    @action(detail = False , methods = ['GET', 'PUT'])
+    @action(detail = False , methods = ['GET', 'PUT'] , permission_classes = [IsAuthenticated])
     def me(self, request):
-        print("\n\n user id = " ,request.user.pk , "\n\n" , )
         (student , is_created) = Student.objects.get_or_create(user=request.user)
        
         if  is_created :
             return Response("student does not exist")
         
 
-        print("\n\n id = " , student.pk , "\n\n", )
         if( request.method == 'GET'):
-            print("\n\n i am in get method \n\n", )
             ser_data = StudentSerializer(student)  
             return Response(ser_data.data)
         elif( request.method == 'PUT'):
-            print("\n\n i am in put method \n\n", )
             ser_data = StudentSerializer(student , data= request.data)
             ser_data.is_valid(raise_exception=True)
             ser_data.save()
@@ -112,12 +116,12 @@ class StudentViewSet(CreateModelMixin, RetrieveModelMixin , UpdateModelMixin , G
             #permission_classes = [IsAuthenticated]
     
     
-    @action(detail = False , methods = ['GET'])
-    def courses(self, request):       
-        #print("user ::: "  ,request.user )
+    @action(detail = False , methods = ['GET']   , permission_classes = [IsAuthenticated])
+    def courses(self, request):
+        
         (student , is_created ) = Student.objects.get_or_create(user=request.user)
         enrolled_courses =  Course.objects.filter(
-        id__in=Enrollment.objects.filter(student_id=student.id).values_list('course_id', flat=True)
+        id__in=Enrollment.objects.filter(student_id=student.pk).values_list('course_id', flat=True)
         ).select_related('instructor__user')
         ser_data = CourseSerializer(enrolled_courses , many = True)
         
@@ -133,11 +137,10 @@ class HomeCourseViewSet( ReadOnlyModelViewSet ):
        
     queryset = Course.objects.all().select_related('instructor')
     serializer_class = CourseSerializer
-    # print("\n\nthis is the key\n\n:::::" , settings.STRIPE_SECRET_KEY)
     
 class HomeCourseContentViewSet( ReadOnlyModelViewSet ):
        
-       
+    permission_classes = [IsAuthenticated ]
     queryset = CourseContent.objects.all()
     serializer_class = UnEnrolledStudentCourseContentSerializer
     
@@ -147,26 +150,27 @@ class HomeCourseContentViewSet( ReadOnlyModelViewSet ):
             course_pk = self.kwargs['course_pk']
                           
             return CourseContent.objects.filter(course_id=course_pk)
-                
+
 class CourseViewSet( ModelViewSet ):
-       
+    
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
+    permission_classes = [IsAuthenticated , IsCourseInstructorOrReadOnly]
     
     def get_queryset(self):
             instructor_pk = self.kwargs['instructor_pk']
             return Course.objects.filter(instructor_id=instructor_pk)
 
     def get_serializer_context( self):
-        #    print("\n\n\n\n**************************************" , self.kwargs['instructor_pk'],
-        #                  "\n\n\n\n**************************************")
+
            return {'instructor_id' : self.kwargs['instructor_pk']}
-        
+
 class CourseContentViewSet( ModelViewSet ):
        
        
     queryset = CourseContent.objects.all()
     serializer_class = CourseContentWithQuizSerializer
+    permission_classes = [IsAuthenticated , IsCourseInstructorOrReadOnly]
     
     def get_queryset(self):
             course_pk = self.kwargs['course_pk']
@@ -177,8 +181,6 @@ class CourseContentViewSet( ModelViewSet ):
         
     
     def get_serializer_context(self):
-           print("\n\n\n\n**************************************" , self.kwargs['course_pk'],
-                          "\n\n\n\n**************************************")
            return {'course_id' : self.kwargs['course_pk']
                   }
            
@@ -224,11 +226,12 @@ class CourseContentViewSet( ModelViewSet ):
           return Response("we get an error retry with proper arguments!") 
     
      #def save_progress       
-           
+        
 class QuizViewSet( ModelViewSet ):
        
     queryset = Quiz.objects.all()
     serializer_class = QuizSerializer
+    permission_classes = [IsAuthenticated , IsCourseInstructorOrReadOnly]
     
     def get_queryset(self):
 
@@ -238,15 +241,15 @@ class QuizViewSet( ModelViewSet ):
         
     
     def get_serializer_context(self):
-        #    print("\n\n\n\n**************************************" , self.kwargs['instructor_pk'],
-        #                  "\n\n\n\n**************************************")
+
            return {'course_content_id' : self.kwargs['course_content_pk']
                   }          
-                
+        
 class QuizViewQuestionViewSet( ModelViewSet ):
        
     queryset = QuizQuestion.objects.all()
     serializer_class = QuizQuestionSerializer
+    permission_classes = [IsAuthenticated , IsCourseInstructorOrReadOnly]
     
     def get_queryset(self):
             quiz_pk = self.kwargs['quiz_pk']
@@ -274,8 +277,7 @@ class QuizViewQuestionViewSet( ModelViewSet ):
         
     
     def get_serializer_context(self):
-        #    print("\n\n\n\n**************************************" , self.kwargs['instructor_pk'],
-        #                  "\n\n\n\n**************************************")
+
            return {'quiz_id' : self.kwargs['quiz_pk'] }      
 
 class ForumPostViewSet( ModelViewSet ):
@@ -290,8 +292,7 @@ class ForumPostViewSet( ModelViewSet ):
         
     
     def get_serializer_context(self):
-        #    print("\n\n\n\n**************************************" , self.kwargs['instructor_pk'],
-        #                  "\n\n\n\n**************************************")
+
            return {'course_id' : self.kwargs['course_pk'] } 
        
     
@@ -304,13 +305,6 @@ class ForumPostViewSet( ModelViewSet ):
         user = User.objects.get(pk=user_id)
         post = ForumPost.objects.create(course=course, user=user)
         
-        
-        # instructor = Instructor.objects.create(user_id=request.user.id)
-        # serializer = InstructorSerializerSensitive(instructor, data=request.data)
-        # serializer.is_valid(raise_exception=True)
-        # serializer.save()
-        # return Response(serializer.data)
-        
         # Get the serializer
         serializer = ForumPostSerializer(post , data=request.data)
         
@@ -321,13 +315,43 @@ class ForumPostViewSet( ModelViewSet ):
         
         return Response(serializer.data)
         
+class ForumPostCommentViewSet( ModelViewSet ):
+       
+    permission_classes = [IsAuthenticated]
+    queryset = ForumPostComment.objects.all()
+    serializer_class = ForumPostCommentSerializer
+    
+    def get_queryset(self):
+            post_pk = self.kwargs['post_pk']
+            return ForumPostComment.objects.filter(post=post_pk)
+        
+    
+    def get_serializer_context(self):
+           return {'post_id' : self.kwargs['post_pk'] } 
+       
+    
+    def create(self, request, *args, **kwargs):
+        # Get the instructor from the URL
+        post_pk = self.kwargs['post_pk']
+        user_id = request.user.id
+        post = ForumPost.objects.get(pk=post_pk)
+        user = User.objects.get(pk=user_id)
+        post = ForumPostComment.objects.create(post=post, user=user)
+
+        serializer = ForumPostCommentSerializer(post , data=request.data)
+        
+        serializer.is_valid(raise_exception=True)
+        
+        serializer.save()
+        
+        return Response(serializer.data)
 
 #######"" for student
 class StudentQuizQuestionViewSet( ReadOnlyModelViewSet ):
        
     queryset = QuizQuestion.objects.all()
-    
     serializer_class = StudentQuizQuestionSerializer
+    permission_classes = [IsAuthenticated , IsStudent]
     
     def get_queryset(self):
 
@@ -354,6 +378,7 @@ class StudentCourseViewSet( ReadOnlyModelViewSet ):
        
     queryset = Course.objects.all()
     serializer_class = StudentCourseSerializer
+    permission_classes = [IsAuthenticated , IsStudent]
     
     def get_queryset(self):
             student_pk = self.kwargs['student_pk']
@@ -407,7 +432,6 @@ class StudentCourseViewSet( ReadOnlyModelViewSet ):
         certificate = Certificate.objects.none()
         
         if exist:
-         print("\nexist\n")
          certificate = Certificate.objects.get(
             student_id= student_pk,
             course_id = pk
@@ -415,7 +439,6 @@ class StudentCourseViewSet( ReadOnlyModelViewSet ):
          
          
         else:
-            print("\ncreate\n")
             certificate_number = str(uuid4())[:8]
             certificate = Certificate.objects.create(
             student_id= student_pk,
@@ -426,19 +449,12 @@ class StudentCourseViewSet( ReadOnlyModelViewSet ):
         ser_data = CertificateSerializer(certificate )
         
         return Response(ser_data.data)
-        #print("\n\nthe is the percentage= " ,percentage , "\n\n" ) 
-        # student_id = student_pk
-        # course_id = pk        
-        # progress = StudentProgress.objects.filter(student = student_id , course = course_id)
-        # ser_data = StudentProgressSerializer(progress , many = True)  
-        #return Response(percentage)
-    
+
 class StudentCourseContentViewSet( ReadOnlyModelViewSet ):
        
-    #permisionclass = IsRightStudent
     queryset = CourseContent.objects.all()
     serializer_class = StudentCourseContentSerializer
-    
+    permission_classes = [IsAuthenticated , IsStudent]
     
     
     def get_queryset(self):
@@ -458,11 +474,9 @@ class StudentCourseContentViewSet( ReadOnlyModelViewSet ):
         
         student_id = self.kwargs['student_pk']
         
-        print("student :: " , student_id)
         
         is_sub = StudentSubscription.is_sub(None , student_id)
         
-        print("sub :: " , is_sub)
         
         is_enrolled = Enrollment.objects.filter(
             student_id=self.kwargs['student_pk'],
@@ -477,7 +491,6 @@ class StudentCourseContentViewSet( ReadOnlyModelViewSet ):
     
         # Return an instance of the serializer, not the class itself
         return serializer_class(*args, **kwargs, context=self.get_serializer_context())
-         
     
     
     @action(detail = True , methods = ['POST'])
@@ -503,9 +516,7 @@ class StudentCourseContentViewSet( ReadOnlyModelViewSet ):
         if is_enrolled:
             return Response("you already save this progress")
         
-        # print(student.__str__)
-        # print(course.__str__)
-        # print(course_content.__str__)
+
         progress = StudentProgress.objects.create(student = student  , 
                     course = course , watched_course_content = course_content)
         ser_data = StudentProgressSerializer(progress)  
@@ -519,47 +530,17 @@ class StudentCourseContentViewSet( ReadOnlyModelViewSet ):
            return Response({"error": "Course content not found."}, status=404)
        except Exception as e:
         return Response({"error": str(e)}, status=400)
-    
+
 class StudentQuizViewSet( ReadOnlyModelViewSet ):
-       
+    
+    permission_classes = [IsAuthenticated , IsStudent]
     queryset = Quiz.objects.all()
     serializer_class = StudentQuizSerializer
     
     def get_queryset(self):
             course_content_pk = self.kwargs['course_content_pk']
             return Quiz.objects.filter(course_content=course_content_pk)
-                        
-class ForumPostCommentViewSet( ModelViewSet ):
-       
-    permission_classes = [IsAuthenticated]
-    queryset = ForumPostComment.objects.all()
-    serializer_class = ForumPostCommentSerializer
-    
-    def get_queryset(self):
-            post_pk = self.kwargs['post_pk']
-            return ForumPostComment.objects.filter(post=post_pk)
-        
-    
-    def get_serializer_context(self):
-           return {'post_id' : self.kwargs['post_pk'] } 
-       
-    
-    def create(self, request, *args, **kwargs):
-        # Get the instructor from the URL
-        post_pk = self.kwargs['post_pk']
-        user_id = request.user.id
-        post = ForumPost.objects.get(pk=post_pk)
-        user = User.objects.get(pk=user_id)
-        post = ForumPostComment.objects.create(post=post, user=user)
 
-        serializer = ForumPostCommentSerializer(post , data=request.data)
-        
-        serializer.is_valid(raise_exception=True)
-        
-        serializer.save()
-        
-        return Response(serializer.data)
-                
 class SuccessView(TemplateView , APIView  ):
     
     authentication_classes = [JWTAuthentication]
@@ -582,10 +563,7 @@ class SuccessSubView(TemplateView , APIView):
     template_name = "sub_success.html"
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        print("user that will go oto html :::: " , self.request.user  ) 
-        
+        context = super().get_context_data(**kwargs)        
         # Add student ID to the context
         context['student'] =  Student.objects.get(user =  self.request.user)
         return context
@@ -597,22 +575,34 @@ class CancelView(TemplateView, APIView):
     
 class CreateCheckoutSessionForPaymentView(APIView):
     
+    def get_thumbnail_url(self , course : Course):
+        if not course.thumbnail:
+            return settings.DEFAULT_THUMBNAIL_URL
+            
+        try:
+            with open(os.path.join(settings.MEDIA_ROOT, course.thumbnail.name), "rb") as image_file:
+                response = requests.post(
+                    "https://api.imgbb.com/1/upload",
+                    data={"key": settings.IMGBB_API_KEY},
+                    files={"image": image_file}
+                ).json()
+                return response['data']['url'] if response['status'] == 200 else settings.DEFAULT_THUMBNAIL_URL
+        except:
+            return settings.DEFAULT_THUMBNAIL_URL
+    
+    
+    
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     def get(self, request, course_pk):
         try:
             # Ensure Stripe is configured
             
-            print("Auth header:", request.headers.get('Authorization'))
-            print("User:", request.user)
-            print("Is authenticated:", request.user.is_authenticated)
-            
             
             stripe.api_key = settings.STRIPE_SECRET_KEY
             
             # Retrieve the course
             course = get_object_or_404(Course, pk=course_pk)
-            print('this is user : ' , request.user)
             student, _ = Student.objects.get_or_create(user=request.user)
             
             is_enrolled = Enrollment.objects.filter(
@@ -628,70 +618,38 @@ class CreateCheckoutSessionForPaymentView(APIView):
             if not course.price:
                 return JsonResponse({'error': 'Course price is not set'}, status=400)
             
-            # Convert price to cents
+            # Convert price to cents        
             price_in_cents = int(float(course.price) * 100)
             
-            
-            
-            # Create a Payment Order
-            payment_order = Payment_Order.objects.create(
-                student=student,
-                course=course
-            )
             # host the image so in checkout page stripe get the picture because it accept only hosted pictures
             
-            thumbnail_url = 'https://via.placeholder.com/600x400.png?text=Course+Image'
-            
-            if course.thumbnail:
-                local_image_path = os.path.join(settings.MEDIA_ROOT, course.thumbnail.name)
-                
-                # Upload to ImgBB dynamically
-                with open(local_image_path, "rb") as image_file:
-                    response = requests.post(
-                        "https://api.imgbb.com/1/upload",
-                        data={
-                            "key": "6830c67c69dc80a7b7b461d29ac14a7a",  # Replace with your ImgBB API key
-                        },
-                        files={
-                            "image": image_file
-                        }
-                    )
-                    response_data = response.json()
-                    if response_data['status'] == 200:
-                        thumbnail_url = response_data['data']['url']  # Get public image URL
-                    else:
-                        thumbnail_url = "https://via.placeholder.com/600x400.png?text=Course+Image"  # Fallback image
-            else:
-                thumbnail_url = "https://via.placeholder.com/600x400.png?text=Course+Image"
+            thumbnail_url = self.get_thumbnail_url(course)
 
-                checkout_session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
-                line_items=[
-                    {
-                        'price_data': {
-                            'currency': 'usd',
-                            'unit_amount': price_in_cents,
-                            'product_data': {
-                                'name': course.title,
-                                'images':[thumbnail_url], 
-                            },
+            checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[
+                {
+                    'price_data': {
+                        'currency': 'usd',
+                        'unit_amount': price_in_cents,
+                        'product_data': {
+                            'name': course.title,
+                            'images':[thumbnail_url], 
                         },
-                        'quantity': 1,
                     },
-                ],
-                metadata={
-                    "course_id": course.pk,
-                    "course_title": course.title,
-                    "payment_order_id": payment_order.pk,
-                    "student_id": student.pk
+                    'quantity': 1,
                 },
-                mode='payment',
-                success_url=request.build_absolute_uri('/success/'),
-                cancel_url=request.build_absolute_uri(f'/courses/{course_pk}'),
+            ],
+            metadata={
+                "course_id": course.pk,
+                "course_title": course.title,
+                "student_id": student.pk
+            },
+            mode='payment',
+            success_url=request.build_absolute_uri('/success/'),
+            cancel_url=request.build_absolute_uri(f'/courses/{course_pk}'),
             )
-            
-            print("\n\nthis is the last line in stripe checkout\n\n")
-            
+                        
             # Redirect directly to Stripe Checkout
             return HttpResponseRedirect(checkout_session.url)
         
@@ -700,7 +658,6 @@ class CreateCheckoutSessionForPaymentView(APIView):
             return JsonResponse({
                 'error': f'Checkout failed: {str(e)}'
             }, status=500)
-
 
 logger = logging.getLogger(__name__)
 @method_decorator(csrf_exempt, name='dispatch')  # Disable CSRF protection for webhooks
@@ -727,24 +684,14 @@ class StripeWebhookView(View):
         
         Verifies webhook signature and routes to appropriate event handler
         """
-        # Raw payload data from the webhook request
-        
-        print("\n=== WEBHOOK REQUEST RECEIVED ===")
-        #print("Headers:", request.headers)
+
         payload = request.body
-        #print("Raw Payload:", payload.decode('utf-8'))
         
-        # payload = request.body
-        # print("\n\n we get this payload = " ,payload , "\n\n" , )
-        # Stripe signature header for verification
+
         sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
-        #print("\n\n we get this sig_header = " ,sig_header , "\n\n" , )
-        # print("\n\nPayload received:", payload)
-        # print("\n\nSignature header:", sig_header)
 
         try:
             
-            print("\n\nthis is my endpoint : " ,self.endpoint_secret,"\n\n")
             # Verify the webhook signature to prevent fraudulent requests
             event = stripe.Webhook.construct_event(
                 payload,  # Raw request body
@@ -756,22 +703,18 @@ class StripeWebhookView(View):
                 session = event['data']['object']
                 # Check if this is a course purchase or subscription
                 if session.get('metadata', {}).get('course_id'):
-                    print("\n\ni will go to handle_checkout_session_completed\n\n")
                     return self.handle_checkout_session_completed(event)
                 else:
-                    print("\n\ni will go to handle_checkout_session_subscription_completed\n\n")
                     return self.handle_checkout_session_subscription_completed(event)
             
             return HttpResponse(status=200)
             
         except ValueError as e:
             # Logging and handling invalid payload
-            print(f"Invalid payload: {e}")
             logger.error(f"Invalid payload: {e}")
             return HttpResponse(status=400)  # Bad request
         except stripe.error.SignatureVerificationError as e:
             # Logging and handling signature verification failure
-            print(f"Invalid signature: {e}")
             logger.error(f"Invalid signature: {e}")
             return HttpResponse(status=400)  # Bad request
     
@@ -799,33 +742,16 @@ class StripeWebhookView(View):
         """
         session = event['data']['object']
         
-        print("\n\nwe are in handel session completed\n\n" , )
         
         try:
-            # Extract metadata from the session
-            #  metadata={
-            #         "course_id": course.pk,
-            #         "course_title": course.title,
-            #         "payment_order_id": payment_order.pk,
-            #         "student_id": student.pk
-            #     },
+
             course_id = session['metadata'].get('course_id')
-            payment_order_id = session['metadata'].get('payment_order_id')
             student_id = session['metadata'].get('student_id')
-            
-            print("\n\n course id = " ,course_id , "\n\n" , )
-            print("\n\n payment order id = " ,payment_order_id , "\n\n" , )
-            print("\n\n student id = " ,student_id , "\n\n" , )
-            
             
             # Retrieve related objects
             course = Course.objects.get(pk=course_id)
             student = Student.objects.get(pk=student_id)
-            payment_order = Payment_Order.objects.get(pk=payment_order_id)
             
-            print("\n\n sec course id = " ,course.pk , "\n\n" , )
-            print("\n\n sec payment order id = " ,payment_order.pk , "\n\n" , )
-            print("\n\n sec student id = " ,student.pk , "\n\n" , )
             
             # Create StripePayment record
             stripe_payment = StripePayment.objects.create(
@@ -833,20 +759,15 @@ class StripeWebhookView(View):
                 stripe_charge_id=session['payment_intent'],
                 paid_amount=session['amount_total'] / 100,  # Convert cents to dollars
                 course_price=course.price,
-                payment_order=payment_order,
                 timestamp=timezone.now()
             )
-            
-            print("\n\n sec stripe payment id = " ,stripe_payment.pk , "\n\n" , )
             # Create Enrollment
             enrollment = Enrollment.objects.create(
                 student=student,
                 course=course,
-                payment=payment_order
+                payment=stripe_payment
             )
-            
-            print("\n\n sec enrollment id = " ,enrollment.pk , "\n\n" , )
-            
+                    
             self._send_enrollment_email_confirmation( student.user , enrollment)
             
             logger.info(f"Successful enrollment for student {student.__str__} in course {course.title}")
@@ -881,51 +802,33 @@ class StripeWebhookView(View):
         
         """
         
-        print("\n\nwe are in handle_checkout_session_subscription_completed session completed\n\n" , )
         session = event['data']['object']
         
         
         
         try:
             # Extract metadata from the session
-            #  metadata={
-            #         "course_id": course.pk,
-            #         "course_title": course.title,
-            #         "payment_order_id": payment_order.pk,
-            #         "student_id": student.pk
-            #     },
-            print("\n1\n")         
+
             student_id = session.get('metadata', {}).get('student_id')
-            print("\n3\n")
-            print("\n\n student id = " ,student_id , "\n\n" , )
             
             
             # Retrieve related objects
             student = Student.objects.get(pk=student_id)
-            
-            print("\n\n sec student id = " ,student.pk , "\n\n" , )
-            
+                        
             
 
             has_sub = StudentSubscription.is_sub(student)
-            print("\n4\n")            
             duration = int( getattr(settings, 'SUBSCRIPTION', {}).get('DURATION'))
-            print("\n5\n")
             start_date = timezone.now()
-            print("\n6\n")
             end_date = (timezone.now() + timedelta(days=duration))
-            print("\n7\n")
             
             if(has_sub):
                 sub = StudentSubscription.objects.get(
                 student=student
                 )
-                print("\n8\n")
                 end_date = sub.end_date + timedelta(days=duration)
-                print("\n9\n")
                 sub.delete()
             
-            print("\n10\n")
             # Create StripePayment record
             subscription = StudentSubscription.objects.create(
                 student=student,
@@ -934,7 +837,6 @@ class StripeWebhookView(View):
                 
             )
             
-            print("\n\n sec sub id = " ,subscription.pk , "\n\n" , )
             # Create Enrollment
 
             
@@ -949,7 +851,7 @@ class StripeWebhookView(View):
             logger.error(f"Webhook processing error: {e}")
             return HttpResponse(status=500)
 
-class CreateCheckoutSessionForSubscriptionView(APIView):
+class CreateCheckoutSessionForSubscriptionView(APIView): 
     
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -957,16 +859,10 @@ class CreateCheckoutSessionForSubscriptionView(APIView):
         try:
             # Ensure Stripe is configured
             stripe.api_key = settings.STRIPE_SECRET_KEY
-            
-            print("All settings:", dir(settings)) 
-            
+                        
             student, _ = Student.objects.get_or_create(user=request.user)
             
-            
-            
-            print("Subscription settings:", getattr(settings, 'SUBSCRIPTION', {}))
             price = getattr(settings, 'SUBSCRIPTION', {}).get('PRICE')
-            print("Price retrieved:", price)
             
             if price == '0':
                 return JsonResponse({'error': 'price is not set in settings'}, status=400)
@@ -1000,10 +896,6 @@ class CreateCheckoutSessionForSubscriptionView(APIView):
                 cancel_url=request.build_absolute_uri(f'/courses/'),
             )
             
-            print("\n\nthis is the last line in stripe checkout\n\n")
-            
-            print("\n\n this student id from ck sub == " , student.pk ,"\n\n")
-            # Redirect directly to Stripe Checkout
             return HttpResponseRedirect(checkout_session.url)
         
         except Exception as e:
@@ -1011,3 +903,4 @@ class CreateCheckoutSessionForSubscriptionView(APIView):
             return JsonResponse({
                 'error': f'Checkout failed: {str(e)}'
             }, status=500)
+

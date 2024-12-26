@@ -5,10 +5,10 @@
     <script>
         // Get the student ID from a hidden input or pass it via a context variable
         const studentId = {{ student.id }};  // Django template syntax
-        
+        const redirectUrl = "{% url 'student_courses' %}";
         // Redirect after 3 seconds
         setTimeout(function() {
-            window.location.href = `http://127.0.0.1:8000/DzSkills/students/courses`;
+            window.location.href = redirectUrl;
         }, 30000);
     </script>
 </head>
@@ -18,7 +18,7 @@
         <p>You will be redirected to your courses in 3 seconds...</p>
         
         <p>If you are not redirected, click the button below:</p>
-        <a href="http://127.0.0.1:8000/DzSkills/students/courses" 
+        <a href="{% url 'student_courses' %}" 
            style="display: inline-block; padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">
             Go to My Courses
         </a>
