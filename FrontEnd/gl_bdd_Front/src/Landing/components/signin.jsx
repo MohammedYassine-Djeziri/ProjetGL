@@ -1,6 +1,12 @@
-
+import { useNavigate } from "react-router-dom"
 
 function Signin() {
+  const navigate = useNavigate(); // Initialize the useNavigate hook
+
+  const handleSignup = (event) => {
+    event.preventDefault(); // Prevent the form from reloading the page
+    navigate("/pageaccstd"); // Navigate to the App page (or the route you specify)
+  };
   return(
     <div className="min-h-screen bg-[#002333] text-white flex flex-col items-center justify-center">
       <header className="text-center mb-8">
@@ -9,7 +15,7 @@ function Signin() {
         <p className="mt-2">Commencez votre Parcours D'apprentissage dès Aujourd'hui</p>
       </header>
 
-      <form className="bg-[#003244] p-6 rounded-lg shadow-lg w-[90%] max-w-md">
+      <form className="bg-[#003244] p-6 rounded-lg shadow-lg w-[90%] max-w-md" onSubmit={handleSignup}>
         <div className="mb-4">
           <label htmlFor="email" className="block mb-2 text-sm font-medium">
             E-Mail<span className="text-red-500">*</span>
@@ -78,6 +84,7 @@ function Signin() {
         <button
           type="submit"
           className="w-full bg-green-500 text-white py-2 rounded font-bold hover:bg-green-600"
+          
         >
           S'inscrire
         </button>
@@ -88,7 +95,7 @@ function Signin() {
         </p>
 
         <p className="text-center text-sm mt-4">
-          Vous avez déjà un compte? <a href="#" className="text-blue-400 underline">Se Connecter</a>
+          Vous avez déjà un compte? <a href="#" className="text-blue-400 underline"  onClick={() => navigate("/login")}>Se Connecter</a>
         </p>
       </form>
     </div>

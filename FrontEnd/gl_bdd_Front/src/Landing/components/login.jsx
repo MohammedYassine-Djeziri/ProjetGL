@@ -1,6 +1,13 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 function Login() {
+  const navigate = useNavigate(); // Initialize the useNavigate hook
+
+  const handleLogin = (event) => {
+    event.preventDefault(); // Prevent the form from reloading the page
+    navigate("/pageaccstd");
+  }
   return (
     <div className="min-h-screen bg-[#002333] flex flex-col items-center justify-center text-white">
       <header className="text-center mb-8">
@@ -11,7 +18,7 @@ function Login() {
         <p className="mt-2">Accédez à votre espace personnel</p>
       </header>
 
-      <form className="bg-[#003244] p-6 rounded-lg shadow-lg w-[90%] max-w-md">
+      <form className="bg-[#003244] p-6 rounded-lg shadow-lg w-[90%] max-w-md" onSubmit={handleLogin}>
         <div className="mb-4">
           <label
             htmlFor="email-or-phone"
@@ -50,7 +57,7 @@ function Login() {
 
         <p className="text-center text-sm mt-4">
           Vous n'avez pas de compte?{" "}
-          <a href="#" className="text-blue-400 underline">
+          <a href="#" className="text-blue-400 underline" onClick={() => navigate("/signin")}>
             S'inscrire
           </a>
         </p>

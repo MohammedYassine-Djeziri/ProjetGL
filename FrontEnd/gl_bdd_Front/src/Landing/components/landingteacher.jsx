@@ -1,21 +1,23 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-function LandingPage() {
+function LandingTeacher() {
   const navigate = useNavigate();
-  // const handleSelectBar = (event) =>{
-  //   const role = event.target.value
-  //   if (role === "student"){
-  //     navigate("/landingpage")
-  //   }
-  //   else if (role === "teacher"){
-  //     navigate("/landingteacher")
-  //   }}
+
+  const handleSelectBar = (event) =>{
+    const role = event.target.value
+    if (role === "student"){
+      navigate("/landingpage")
+    }
+    else if (role === "teacher"){
+      navigate("/landingteacher")
+    }
+  }
   return (
     <div className="bg-white">
       {/* Header */}
       <header className="bg-[#002333] text-white py-4 px-6 flex justify-between items-center">
         <h1 className="text-2xl font-bold">DZ Skills</h1>
-        <select className="bg-white text-black px-3 py-1 rounded" >
+        <select className="bg-white text-black px-3 py-1 rounded" value={role} onChange={handleSelectBar}>
           <option value="students">pour les étudiants</option>
           <option value="teachers">pour les enseignants</option>
         </select>
@@ -32,7 +34,7 @@ function LandingPage() {
       {/* Hero Section */}
       <section className="text-center py-10 px-4 bg-gray-100">
         <h2 className="text-4xl font-bold">
-          La <span className="text-green-500">1er</span> Plateforme
+          La <span className="text-green-500">2er</span> Plateforme
           D'Apprentissage En Ligne
         </h2>
         <p className="mt-4 text-xl">Ce que nous offrons</p>
@@ -104,4 +106,4 @@ function LandingPage() {
   );
 }
 
-export default LandingPage;
+export default LandingTeacher;
