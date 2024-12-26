@@ -1,6 +1,9 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
-const Coursecard = ({ title, instructor, description, image }) => {
+const Coursecard = ({ id, title, instructor, description, image }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="bg-green-500 flex flex-col md:flex-row items-center md:items-start p-4 rounded-lg shadow-lg gap-4 mb-6">
       {/* Image Section */}
@@ -25,11 +28,34 @@ const Coursecard = ({ title, instructor, description, image }) => {
 
         {/* Buttons Section */}
         <div className="flex flex-col gap-2 w-full md:w-auto">
-          <button className="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600">
+          {/* Navigate to Coursemodulebuy with dynamic data */}
+          <button
+            onClick={() =>
+              navigate("/coursemodulebuy", {
+                state: { id, title, instructor, description, image },
+              })
+            }
+            className="bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600"
+          >
             Voir les détails
           </button>
-          <button className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+
+          <button 
+          className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+          onClick={() =>
+            navigate("/coursemodules", {
+              state: { id, title, instructor, description, image },
+            })
+          }>
             Acheter maintenant
+          </button>
+          
+          <button 
+          onClick={() =>
+            navigate("/pageacctch")
+          }
+          className="bg-[#011E3A] text-white py-2 px-4 rounded hover:bg-blue-600" >
+            Voir Affiliation
           </button>
         </div>
       </div>
@@ -38,3 +64,4 @@ const Coursecard = ({ title, instructor, description, image }) => {
 };
 
 export default Coursecard;
+
