@@ -1,7 +1,7 @@
 // components/MonApprentissage.jsx
 import React from "react";
 
-const Monapprentissage = () => {
+const Monapprentissage = ({title , last_part , progress}) => {
   const courses = [1, 2, 3]; // Example data
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
@@ -13,16 +13,16 @@ const Monapprentissage = () => {
           <img
             src="https://via.placeholder.com/300x150"
             alt="Course Thumbnail"
-            className="w-full h-32 object-cover"
+            className="w-full mx-3 my-3 rounded-xl h-32 object-cover"
           />
           <div className="p-4">
-            <h4 className="font-bold">Title: .......................</h4>
-            <p className="text-gray-600 text-sm">last view part: ....</p>
+            <h4 className="font-bold">Title: {title}</h4>
+            <p className="text-gray-600 text-sm">last view part: {last_part}</p>
             <div className="mt-4">
               <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div className="h-full bg-green-500 w-1/4"></div>
               </div>
-              <p className="text-sm text-gray-500 mt-2">Progress: 25%</p>
+              <p className="text-sm text-gray-500 mt-2">Progress: {progress}</p>
             </div>
           </div>
         </div>
