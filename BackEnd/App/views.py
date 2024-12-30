@@ -2,7 +2,7 @@ from django.shortcuts import get_object_or_404, render , redirect
 from rest_framework import viewsets 
 from rest_framework.mixins import CreateModelMixin , UpdateModelMixin , RetrieveModelMixin , ListModelMixin
 from .models import (Instructor, Student , StudentProgress, User ,Course , CourseContent , Quiz , QuizQuestion  ,
-                     ForumPostComment , ForumPost , Payment_Order , StripePayment , Enrollment , Certificate , StudentSubscription)
+                     ForumPostComment , ForumPost , Payment_Order , StripePayment , Enrollment , Certificate , StudentSubscription,Affiliation,affiliatedusers)
 from .serializers import (InstructorSerializer, StudentSerializer , CourseSerializer , 
                           InstructorSerializerSensitive , CourseContentSerializer , QuizSerializer ,
                           QuizQuestionSerializer , ForumPostSerializer , ForumPostCommentSerializer,
@@ -767,9 +767,19 @@ class StripeWebhookView(View):
                 course=course,
                 payment=stripe_payment
             )
-                    
-            self._send_enrollment_email_confirmation( student.user , enrollment)
             
+            self._send_enrollment_email_confirmation( student.user , enrollment)
+            affiliation=affiliatedusers.objects.filter(affiliateduser=student)
+            if affiliation.exists():
+                for aff in affiliation:
+                    affiliationprogram=Affiliation.objects.get(pk=aff.affiliation)
+                    if affiliationprogram.Course == course:
+                        if (aff.created_at - timezone.now()).days < 30:
+                            aff.boughted=True
+                            aff.earning=course.price*0.2
+                            aff.save()
+                        else:
+                            aff.delete()
             logger.info(f"Successful enrollment for student {student.__str__} in course {course.title}")
             
             return HttpResponse(status=200)
@@ -903,4 +913,98 @@ class CreateCheckoutSessionForSubscriptionView(APIView):
             return JsonResponse({
                 'error': f'Checkout failed: {str(e)}'
             }, status=500)
+import secrets
+import string
+class activateaffiliation(CreateModelMixin, GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    def create(self, request):
+        user1= request.user
+        user= User.objects.get(pk=user1.id)
+        alphabet = string.ascii_letters + string.digits
+        while True:
+            referalcode = ''.join(secrets.choice(alphabet) for i in range(8))
+            if not User.objects.filter(referalcode=referalcode).exists():
+                break
+        user.referalcode = referalcode
+        user.save()
+        return JsonResponse({
+            'message': 'Affiliation activated successfully',
+            'referalcode': referalcode
+        })
+class generateaffiliationlink(CreateModelMixin, GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    def create(self, request):
+        user1= request.user
+        course_pk = request.data['course_pk']
+        course= Course.objects.get(pk=course_pk)
+        user= User.objects.get(pk=user1.id)
+        print(user)
+        referalcode = user.referalcode
+        referal_link = f'http://{request.get_host()}/DzSkills/affiliation/{course_pk}/contents/?referalcode={referalcode}'
+        # Check if an affiliation with the same referal_link already exists
+        if Affiliation.objects.filter(referal_link=referal_link).exists():
+            return JsonResponse({
+            'error': 'Affiliation link already exists'
+        }, status=400)
+        affiliation = Affiliation.objects.create(referal_link=referal_link)
+        affiliation.Course.set([course])
+        affiliation.user.set([user])
+        affiliation.save()
+        return JsonResponse({
+            'message': 'Referal link generated successfully',
+            'referal_link': referal_link
+        })
+class returnaffiliationlinks(ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    
+    def list(self, request):
+        user1 = self.request.user
+        user = User.objects.get(pk=user1.id)
+        affiliations = Affiliation.objects.filter(user=user)
+        affiliation_links = [
+            {
+                'referal_link': affiliation.referal_link,
+                'course': course.id,
+                'course_title': course.title
+            }
+            for affiliation in affiliations
+            for course in affiliation.Course.all()
+        ]
+        return Response({
+            'affiliation_links': affiliation_links
+        })
+class handelaffiliatelinks(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request,course_pk):
+        referalcode = request.GET.get('referalcode')
+        if not referalcode:
+            return JsonResponse({'error': 'Referal code is required'}, status=400)
+
+        try:
+            user = User.objects.get(referalcode=referalcode)
+            course = Course.objects.get(pk=course_pk)
+            aff = Affiliation.objects.get(user=user, Course=course)
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
+        except Affiliation.DoesNotExist:
+            return JsonResponse({'error': 'Affiliation not found'}, status=404)
+        except Course.DoesNotExist:
+            return JsonResponse({'error': 'Course not found'}, status=404)
+
+        affiliateduser, created = affiliatedusers.objects.get_or_create(affiliateduser=request.user, affiliation=aff)
+        affiliateduser.created_at = timezone.now()
+        affiliateduser.save()
+
+        return JsonResponse(CourseSerializer(course).data)
+class getaffiliationearning(ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    def list(self, request):
+        user = self.request.user
+        affiliation= Affiliation.objects.filter(user=user)
+        total_earning = 0
+        for aff in affiliation:
+            affiliatedusers = affiliatedusers.objects.filter(affiliation=aff, boughted=True)
+            for affiliateduser in affiliatedusers:
+                total_earning += affiliateduser.earning
+        return JsonResponse({'total_earning': total_earning})

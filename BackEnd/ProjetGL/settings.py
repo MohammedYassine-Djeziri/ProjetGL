@@ -77,7 +77,7 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'App',
     'drf_spectacular',
-]
+    ]
 
 INTERNAL_IPS = [
     # ...

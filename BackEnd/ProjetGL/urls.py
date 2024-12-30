@@ -29,7 +29,6 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 
 
 
-
 urlpatterns = [
     
     path('admin/', admin.site.urls),
@@ -44,14 +43,11 @@ urlpatterns = [
     path('stripe/webhook/', StripeWebhookView.as_view(), name='stripe-webhook'),
     #path('webhook/stripe/', StripeWebhookView.as_view(), name='stripe-webhook'),
     path('logout/', LogoutView.as_view(), name='auth_logout'),
-
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
 ]
-
-
 
 
 
