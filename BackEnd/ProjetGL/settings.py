@@ -77,8 +77,12 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'App',
     'drf_spectacular',
+<<<<<<< HEAD
     'django_filters',
 ]
+=======
+    ]
+>>>>>>> f7da602fb338a85c1f293cac9139ab845464c5e0
 
 INTERNAL_IPS = [
     # ...
