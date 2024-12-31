@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'App',
     'drf_spectacular',
+    'django_filters',
 ]
 
 INTERNAL_IPS = [
@@ -277,7 +278,7 @@ SUBSCRIPTION = {
 
 
 
-
+AUTH_USER_MODEL = 'App.User'
 
 
 

@@ -1,10 +1,10 @@
 from django.urls import path, include
 from .views import (InstructorViewSet, StudentViewSet , HomeCourseViewSet , CourseViewSet ,
-                    CourseContentViewSet , QuizViewSet , QuizViewQuestionViewSet , ForumPostViewSet
+                    CourseContentViewSet , QuizViewSet , QuizQuestionViewSet , ForumPostViewSet
                     , ForumPostCommentViewSet  , CreateCheckoutSessionForPaymentView   
                     , StripeWebhookView , StudentCourseContentViewSet , StudentCourseViewSet,
                     StudentQuizViewSet , StudentQuizQuestionViewSet , HomeCourseContentViewSet
-                    , CreateCheckoutSessionForSubscriptionView ) 
+                    , CreateCheckoutSessionForSubscriptionView  , EnrollmentViewSet) 
 from rest_framework_nested import routers
 from pprint import pprint
 from django.conf import settings
@@ -15,6 +15,8 @@ router = routers.DefaultRouter()
 router.register('instructors', InstructorViewSet)
 router.register('students', StudentViewSet)
 router.register('courses', HomeCourseViewSet)
+router.register('enrollment', EnrollmentViewSet)
+
 
 course_router_content = routers.NestedDefaultRouter(router , 'courses' , lookup = 'course')
 course_router_content.register('contents' , HomeCourseContentViewSet  , basename = 'course-contents')
@@ -35,7 +37,7 @@ Quiz_router = routers.NestedDefaultRouter(course_router, 'contents', lookup='cou
 Quiz_router.register('quiz', QuizViewSet, basename='course-quizzes')
 
 Quiz_questions_router = routers.NestedDefaultRouter(Quiz_router, 'quiz', lookup='quiz')
-Quiz_questions_router.register('questions', QuizViewQuestionViewSet, basename='quiz-questions')
+Quiz_questions_router.register('questions', QuizQuestionViewSet, basename='quiz-questions')
 
 student_router = routers.NestedDefaultRouter(router , 'students' , lookup = 'student')
 student_router.register('courses' , StudentCourseViewSet  , basename = 'student-courses')

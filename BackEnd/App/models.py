@@ -239,7 +239,7 @@ class ForumPost(models.Model):
     # is_solution = models.BooleanField(default=False)
     
     def __str__(self):
-        return f"Post by {self.user.username} in {self.topic.title}"
+        return f"Post by {self.user.username} in {self.title}"
     
 
 class ForumPostComment(models.Model):
@@ -260,7 +260,7 @@ class ForumPostComment(models.Model):
     # is_solution = models.BooleanField(default=False)
     
     def __str__(self):
-        return f"post about: {self.Post.topic} comment: {self.comment} by: {self.user.__str__} "
+        return f"post about: {self.Post.title} comment: {self.comment} by: {self.user.__str__} "
 
 # class Subscription(models.Model):
 #     """Subscription plans for the platform"""
