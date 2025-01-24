@@ -4,6 +4,7 @@ import { Input, Button } from "@nextui-org/react";
 import { useNavigate } from "react-router-dom";
 
 export default function Login() {
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(""); // State to handle errors
@@ -15,12 +16,13 @@ export default function Login() {
 
     try {
       // Send a POST request to the backend
-      const response = await fetch("http://localhost:8000/auth/jwt/create/", {
+      const response = await fetch("https://glbackend-tdpm.onrender.com/auth/jwt/create/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          username: username,
           email: email,
           password: password,
         }),
@@ -38,7 +40,7 @@ export default function Login() {
         localStorage.setItem("refresh_token", data.refresh);
 
         // Redirect the user to the dashboard or another protected page
-        navigate("/dashboard");
+        navigate("/");
       } else {
         // Handle login errors
         const errorData = await response.json();
@@ -64,6 +66,13 @@ export default function Login() {
           onSubmit={handleLogin} // Add onSubmit handler
           className="flex flex-col items-center gap-8 text-lg font-semibold w-[40%]"
         >
+          <Input
+            type="username"
+            label="username"
+            required
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
           <Input
             type="email"
             label="E-Mail ou numero de telephone"

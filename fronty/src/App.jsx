@@ -10,6 +10,7 @@ import Client from "./client/Client";
 import CourseClient from "./course/CourseClient";
 import CourseForm from "./course/CourseForm";
 import Afiliate from "./course/Afiliate";
+import StatusSelection from "./login/status";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/status" element={<StatusSelection />} />
         <Route path="/expert" element={<Expert />} />
         <Route path="/search-expert" element={<SearchResults />} />
         <Route path="/course-expert" element={<CourseExpert />} />
