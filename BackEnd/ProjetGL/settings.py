@@ -32,7 +32,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if os.getenv('DOCKERIZED'):  # Set this variable in your Docker container
     env_file = os.path.join(BASE_DIR, '..', '.env')  # Using Projet_GL/.env
 else:
-    env_file = os.path.join(BASE_DIR, '.env')  # Using BackEnd/.env for local dev
+    # Using BackEnd/.env for local dev
+    env_file = os.path.join(BASE_DIR, '.env')
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -94,14 +95,13 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "debug_toolbar.middleware.DebugToolbarMiddleware",  
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
-
 
 
 REST_FRAMEWORK = {
 
-    'COERCE_DECIMAL_TO_STRING' : False,
+    'COERCE_DECIMAL_TO_STRING': False,
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication'
@@ -110,7 +110,7 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE' : 'Django DzSkills',
+    'TITLE': 'Django DzSkills',
 }
 
 
@@ -135,9 +135,6 @@ SIMPLE_JWT = {
 
 
 ROOT_URLCONF = 'ProjetGL.urls'
-
-
-
 
 
 TEMPLATES = [
@@ -168,12 +165,11 @@ DATABASES = {
         'NAME': env.str('POSTGRES_DB'),
         'USER': env.str('POSTGRES_USER'),
         'PASSWORD': env.str('POSTGRES_PASSWORD'),
-        'HOST': env.str('POSTGRES_HOST', default='localhost'),  # This matches the service name in docker-compose.yml
+        # This matches the service name in docker-compose.yml
+        'HOST': env.str('POSTGRES_HOST', default='localhost'),
         'PORT': '5432',
     }
 }
-
-
 
 
 # Password validation
@@ -195,6 +191,12 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+#<<<<<<< HEAD
+#=======
+AUTH_USER_MODEL = 'App.User'
+
+
+#>>>>>>> 11dbe0690906667c1f574f7b9c73cde17b77e459
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -233,11 +235,8 @@ ALLOWED_HOSTS = ['*']
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
 
 
-
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-
 
 
 DEFAULT_FROM_EMAIL = 'ostora@gmail.com'
@@ -272,9 +271,4 @@ SUBSCRIPTION = {
 }
 
 
-
 AUTH_USER_MODEL = 'App.User'
-
-
-
-
