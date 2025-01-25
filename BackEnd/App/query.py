@@ -340,10 +340,9 @@ class StudentQueries:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute("""
                     SELECT EXISTS(
-                        SELECT 1 
-                        FROM student_subscription 
-                        WHERE student_id = %s 
-                        AND is_active = TRUE
+                         SELECT select * from "App_studentsubscription" where CURRENT_DATE between 
+                        "App_studentsubscription"."start_date" and "App_studentsubscription"."end_date" 
+                        and "student_id" = %s 
                     ) as is_subscribed
                 """, (student_id,))
                 return cursor.fetchone()['is_subscribed']
@@ -394,20 +393,13 @@ class HomeCourseQueries:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute("""
                     SELECT 
-                        c.id, 
-                        c.title, 
-                        c.description, 
-                        c.price, 
-                        c.level,
-                        i.id as instructor_id,
-                        u.first_name as instructor_first_name,
-                        u.last_name as instructor_last_name
+                        *
                     FROM 
-                        course c
+                        "App_course" c
                     JOIN 
-                        instructor i ON c.instructor_id = i.id
+                        "App_instructor" i ON c.instructor_id = i.id
                     JOIN 
-                        auth_user u ON i.user_id = u.id
+                        "App_user" u ON i.user_id = u.id
                     ORDER BY 
                         c.created_at DESC
                 """)
@@ -436,16 +428,9 @@ class HomeCourseContentQueries:
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute("""
                     SELECT 
-                        id, 
-                        course_id, 
-                        title, 
-                        description, 
-                        content_type, 
-                        video_url, 
-                        duration, 
-                        order_index
+                        *
                     FROM 
-                        course_content
+                        "App_course_content"
                     WHERE 
                         course_id = %s
                     ORDER BY 

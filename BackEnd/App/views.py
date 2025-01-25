@@ -73,7 +73,7 @@ class InstructorViewSet(ListModelMixin , CreateModelMixin, RetrieveModelMixin , 
     
     @action(detail = False , methods = ['GET', 'PUT'] , permission_classes = [IsAuthenticated])
     def me(self, request):
-       (instructor ) = get_object_or_404(Instructor user=request.user)
+       (instructor ) = get_object_or_404(Instructor , user=request.user)
        
         
        if( request.method == 'GET'):
