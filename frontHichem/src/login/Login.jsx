@@ -4,24 +4,27 @@ import { Input, Button } from "@nextui-org/react";
 import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("testuser"); // Add default value
+  const [password, setPassword] = useState("aymendenoub"); // Add default value
   const [error, setError] = useState(""); // State to handle errors
+  const [loading, setLoading] = useState(false); // State to handle loading
   const navigate = useNavigate();
 
   // Function to handle form submission
   const handleLogin = async (e) => {
     e.preventDefault(); // Prevent default form submission
+    setError(""); // Clear any previous errors
+    setLoading(true); // Set loading state
 
     try {
       // Send a POST request to the backend
-      const response = await fetch("http://localhost:8000/auth/jwt/create/", {
+      const response = await fetch("https://glbackend-tdpm.onrender.com/DzSkills/api/token/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: email,
+          username: username, // Change email to username
           password: password,
         }),
       });
@@ -30,15 +33,39 @@ export default function Login() {
 
       // Check if the request was successful
       if (response.ok) {
+
         const data = await response.json();
         console.log("Login successful:", data);
 
         // Store the tokens in local storage
         localStorage.setItem("access_token", data.access);
         localStorage.setItem("refresh_token", data.refresh);
+        localStorage.setItem("role", data.role);
+
+        // do a request to https://glbackend-tdpm.onrender.com/auth/me/ to get the user data and set it in the local storage
+        const res = await fetch("https://glbackend-tdpm.onrender.com/auth/users/me/", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `JWT ${data.access}`
+          }
+        });
+
+        const userData = await res.json();
+        console.log("User data:", userData);
+
+        localStorage.setItem("user", JSON.stringify(userData));
 
         // Redirect the user to the dashboard or another protected page
-        navigate("/dashboard");
+        // or if the user does not have a role, redirect him to the role selection page
+        if (data.role === "student") {
+          navigate("/client");
+        } else if (data.role === "expert") {
+          navigate("/expert");
+        } else {
+          navigate("/select-role");
+        }
+
       } else {
         // Handle login errors
         const errorData = await response.json();
@@ -47,6 +74,8 @@ export default function Login() {
     } catch (err) {
       console.error("Error during login:", err);
       setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false); // Reset loading state
     }
   };
 
@@ -65,14 +94,14 @@ export default function Login() {
           className="flex flex-col items-center gap-8 text-lg font-semibold w-[40%]"
         >
           <Input
-            type="email"
-            label="E-Mail ou numero de telephone"
+            type="username"
+            label="Nom d’utilisateur"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={username} // Change email to username
+            onChange={(e) => setUsername(e.target.value)} // Change email to username
           />
           <Input
-            type="password"
+            type="password1"
             label="Mot de passe"
             required
             value={password}
@@ -81,10 +110,11 @@ export default function Login() {
           {error && <p className="text-red-500">{error}</p>} {/* Display error message */}
           <Button
             type="submit" // Change to type="submit" to trigger form submission
-            className="bg-secondary text-white p-2 rounded-lg min-w-[300px]"
+            className="bg-secondary text-black p-2 rounded-lg min-w-[300px]"
             radius="lg"
+            isLoading={loading} // Set isLoading to loading state
           >
-            Login
+            Se Connecter
           </Button>
         </form>
         <p>

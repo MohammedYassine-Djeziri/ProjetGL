@@ -10,12 +10,12 @@ export default function TopBarExpert() {
 
   return (
     <div className="w-full bg-primary border-b-1 border-black text-white p-4 shadow-2xl min-h-[7%] flex items-center justify-between">
-      <div className="flex items-center gap-4">
+      <a className="flex items-center gap-4" href="/">
         <p className=" text-2xl font-bold">DZ Skills</p>
         <img src={stylus_note} alt="logo" className="h-9 w-9" />
-      </div>
+      </a>
       <Search />
-      <Avatar src={pfp} fallback size="md" className="" />
+      <a href="/course-expert/afiliate-example"><Avatar src={pfp} fallback size="md" className="" hre /></a>
     </div>
   );
 }

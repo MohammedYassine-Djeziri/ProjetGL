@@ -1,4 +1,6 @@
 import { Input } from "@nextui-org/react";
+import { useState } from "react";
+
 
 export const SearchIcon = (props) => {
   return (
@@ -31,10 +33,25 @@ export const SearchIcon = (props) => {
 };
 
 export default function Search() {
+
+  const initialValue = new URLSearchParams(window.location.search).get("query");
+
+  const [query, setQuery] = useState(initialValue || "");
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    // redirect to search page with the query
+    window.location.href = `/search-client?query=${query}`;
+  };
+
   return (
     <div className="flex items-center sm:min-w-[400px] sm:ml-[-200px] ">
       <Input
         isClearable
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onClear={() => setQuery("")}
+        onKeyPress={(e) => e.key === "Enter" && handleSearch(e)}
         classNames={{
           label: "text-black/50 dark:text-white/90",
           input: [
