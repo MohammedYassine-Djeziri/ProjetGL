@@ -10,10 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+from datetime import timedelta
 import os
 from pathlib import Path
 import environ
-
+from decouple import config
 
 
 # Initialize environment variables
@@ -29,14 +30,16 @@ environ.Env.read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if os.getenv('DOCKERIZED'):  # Set this variable in your Docker container
-    env_file = os.path.join(BASE_DIR, '..', '.env')  # Use Projet_GL/.env
+    env_file = os.path.join(BASE_DIR, '..', '.env')  # Using Projet_GL/.env
 else:
-    env_file = os.path.join(BASE_DIR, '.env')  # Use BackEnd/.env for local dev
+    # Using BackEnd/.env for local dev
+    env_file = os.path.join(BASE_DIR, '.env')
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+environ.Env.read_env(BASE_DIR / ".env")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -49,6 +52,17 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# env variables
+
+# Stripe configuration
+STRIPE_PUBLIC_KEY = env.str('STRIPE_PUBLIC_KEY')
+STRIPE_SECRET_KEY = env.str('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = env.str('STRIPE_WEBHOOK_SECRET')
+
+# IMGBB configuration
+IMGBB_API_KEY = env.str('IMGBB_API_KEY')
+DEFAULT_THUMBNAIL_URL = env.str('DEFAULT_THUMBNAIL_URL')
+
 
 # Application definition
 
@@ -57,9 +71,14 @@ INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
+    'rest_framework',
+    'djoser',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'debug_toolbar'
+    'debug_toolbar',
+    'App',
+    'drf_spectacular',
+    'django_filters',
 ]
 
 INTERNAL_IPS = [
@@ -76,10 +95,47 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "debug_toolbar.middleware.DebugToolbarMiddleware",  
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
 ]
 
+
+REST_FRAMEWORK = {
+
+    'COERCE_DECIMAL_TO_STRING': False,
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication'
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Django DzSkills',
+}
+
+
+# SWAGGER_SETTINGS = {
+#     'USE_SESSION_AUTH': False,
+#     'SECURITY_DEFINITIONS': {
+#         'Bearer': {
+#             'type': 'apiKey',
+#             'name': 'Authorization',
+#             'in': 'header'
+#         }
+#     }
+# }
+
+SIMPLE_JWT = {
+    'AUTH_HEADER_TYPES': ('JWT',),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=120),  # Token expiration
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=120),
+    'ROTATE_REFRESH_TOKENS': True,  # Generate new refresh token on each use
+    'BLACKLIST_AFTER_ROTATION': True,  # Prevent reuse of refresh tokens
+}
+
+
 ROOT_URLCONF = 'ProjetGL.urls'
+
 
 TEMPLATES = [
     {
@@ -109,10 +165,12 @@ DATABASES = {
         'NAME': env.str('POSTGRES_DB'),
         'USER': env.str('POSTGRES_USER'),
         'PASSWORD': env.str('POSTGRES_PASSWORD'),
-        'HOST': env.str('POSTGRES_HOST', default='localhost'),  # This matches the service name in docker-compose.yml
+        # This matches the service name in docker-compose.yml
+        'HOST': env.str('POSTGRES_HOST', default='localhost'),
         'PORT': '5432',
     }
 }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -133,6 +191,12 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+#<<<<<<< HEAD
+#=======
+AUTH_USER_MODEL = 'App.User'
+
+
+#>>>>>>> 11dbe0690906667c1f574f7b9c73cde17b77e459
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -154,3 +218,57 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+DJOSER = {
+    'SERIALIZERS': {
+        'user_create': 'App.serializers.UserCreateSerializers',
+        'user_update': 'App.serializers.UpdateUserSerializers',  # For updating user
+        'user': 'App.serializers.UserSerializers',  # For retrieving user details
+        'current_user': 'App.serializers.UserSerializers',  # For `me` endpoint
+    }
+}
+
+ALLOWED_HOSTS = ['*']
+
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/3.1/howto/static-files/
+
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+DEFAULT_FROM_EMAIL = 'ostora@gmail.com'
+
+# settings.py
+STRIPE_ENDPOINT_SECRET = 'whsec_54090a7eb164b311951aadd3fa9946a88e8363cd639ccd36c198a3490cdd0950'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'stripe': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        }
+    }
+}
+
+
+SUBSCRIPTION = {
+    'PRICE': '100',
+    'DURATION': '120',
+}
+
+
+AUTH_USER_MODEL = 'App.User'

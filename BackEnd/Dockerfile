@@ -1,27 +1,42 @@
-# Use the official Python image as a parent image
 FROM python:3.10-slim
 
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    # Add these for better Python performance
+    PYTHONHASHSEED=random \
+    PIP_NO_CACHE_DIR=off \
+    PIP_DISABLE_PIP_VERSION_CHECK=on
 
-# Install PostgreSQL development libraries and other dependencies
+# Create and switch to non-root user
+RUN useradd -m appuser
+
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Stripe CLI
+RUN curl -fsSL https://stripe.com/stripe-cli-install.sh | bash
 
-# Set environment variables to prevent Python from buffering stdout and stderr
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
-# Set the working directory
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt /app/
+# Install Python dependencies first (better layer caching)
+COPY --chown=appuser:appuser requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the Django project files into the container
-COPY . /app/
+# Copy project files
+COPY --chown=appuser:appuser . /app/
 
-# Run the Django development server
+# Switch to non-root user
+USER appuser
+
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health/ || exit 1
+
+# Use gunicorn for production
+# CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "your_project.wsgi:application"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

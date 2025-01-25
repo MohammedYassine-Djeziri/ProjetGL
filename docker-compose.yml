@@ -1,9 +1,10 @@
 services:
+
   backend:
     build:
       context: ./BackEnd
     container_name: backend
-    command: python manage.py runserver 0.0.0.0:8000
+    command: /bin/bash -c "python manage.py makemigrations App && python manage.py makemigrations && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - ./BackEnd:/app
     ports:
@@ -12,7 +13,10 @@ services:
       - .env
     depends_on:
       - db
-
+    environment:
+        # Stripe specific keys
+        - STRIPE_PUBLIC_KEY=${STRIPE_PUBLIC_KEY}
+        - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
 
   frontend:
     build:
@@ -23,6 +27,17 @@ services:
       - REACT_APP_BACKEND_URL=http://localhost:8090
 
 
+  stripe:
+    build: ./stripe  # Path to your Stripe Dockerfile
+    container_name: stripe
+    environment:
+      - STRIPE_API_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_DEVICE_NAME=docker-webhook
+      - STRIPE_WEBHOOK_SIGNING_SECRET=${STRIPE_WEBHOOK_SECRET}
+    depends_on:
+      - backend  # Ensure the web service is up before starting Stripe
+    restart: unless-stopped
+  
 
   db:
     image: postgres:17
