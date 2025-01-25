@@ -241,7 +241,6 @@ class ForumPost(models.Model):
     def __str__(self):
         return f"Post by {self.user.username} in {self.title}"
     
-
 class ForumPostComment(models.Model):
     """Individual posts within a forum topic"""
     post = models.ForeignKey(
@@ -311,20 +310,6 @@ class StudentSubscription(models.Model):
        print("\nA2\n")
        print(sub)
        return (  (sub ) and ( sub.end_date >= timezone.now() ) )
-
-
-class Payment_Order(models.Model):
-
-    student = models.ForeignKey(
-        Student, 
-        on_delete=models.PROTECT, 
-        related_name='payments'
-    )
-    course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name='course_payment_orders')    
-    
-    def __str__(self):
-        return f"Payment {self.student.__str__} - {self.course}"
-    
 
 class StripePayment(models.Model):
     student = models.ForeignKey(Student, on_delete=models.PROTECT, related_name='stripe_payments')

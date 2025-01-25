@@ -2,7 +2,7 @@ from django.shortcuts import get_object_or_404, render , redirect
 from rest_framework import viewsets 
 from rest_framework.mixins import CreateModelMixin , UpdateModelMixin , RetrieveModelMixin , ListModelMixin , DestroyModelMixin
 from .models import (Instructor, Student , StudentProgress, User ,Course , CourseContent , Quiz , QuizQuestion  ,
-                     ForumPostComment , ForumPost , Payment_Order , StripePayment , Enrollment , Certificate , StudentSubscription,Affiliation,affiliatedusers)
+                     ForumPostComment , ForumPost  , StripePayment , Enrollment , Certificate , StudentSubscription,Affiliation,affiliatedusers)
 from .serializers import (InstructorSerializer, StudentSerializer , CourseSerializer , 
                           InstructorSerializerSensitive , CourseContentSerializer , QuizSerializer ,
                           QuizQuestionSerializer , ForumPostSerializer , ForumPostCommentSerializer,
@@ -73,9 +73,8 @@ class InstructorViewSet(ListModelMixin , CreateModelMixin, RetrieveModelMixin , 
     
     @action(detail = False , methods = ['GET', 'PUT'] , permission_classes = [IsAuthenticated])
     def me(self, request):
-       (instructor , is_created) = Instructor.objects.get_or_create(user=request.user)
-       if  is_created :
-            return Response("instructor does not exist")
+       (instructor ) = get_object_or_404(Instructor user=request.user)
+       
         
        if( request.method == 'GET'):
               ser_data = InstructorSerializer(instructor)  
@@ -107,10 +106,7 @@ class StudentViewSet(  GenericViewSet, CreateModelMixin,  RetrieveModelMixin,  U
     
     @action(detail = False , methods = ['GET', 'PUT'] , permission_classes = [IsAuthenticated])
     def me(self, request):
-        (student , is_created) = Student.objects.get_or_create(user=request.user)
-       
-        if  is_created :
-            return Response("student does not exist")
+        (student ) = get_object_or_404(Student , user=request.user)
         
 
         if( request.method == 'GET'):
@@ -177,7 +173,7 @@ class CourseContentViewSet( ModelViewSet ):
        
        
     queryset = CourseContent.objects.all()
-    serializer_class = CourseContentWithQuizSerializer
+    serializer_class = UnEnrolledStudentCourseContentSerializer
     permission_classes = [IsAuthenticated , IsCourseInstructorOrReadOnly]
     
     def get_queryset(self):
