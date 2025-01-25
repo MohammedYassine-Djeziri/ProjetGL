@@ -24,8 +24,14 @@ export default function Afiliate() {
 
 function Left() {
   // change at linking
-  const init = [true, false];
+  const isExpert = localStorage.getItem("role") === "expert";
+  const init = isExpert ? [true, false] : [false, true];
   const [status, setStatus] = useState(init);
+
+  // it is inside user object
+  // user: {email: "", phone: "", password: "", status: ""}
+  const user = JSON.parse(localStorage.getItem('user')); // Parse the string to an object
+
 
   return (
     <div className="w-[47%] flex flex-col  h-full ">
@@ -35,17 +41,20 @@ function Left() {
           type="email"
           label="E-Mail"
           required
-          //   onChange={(e) => setEmail(e.target.value)}
+          value={user.email} // Static value
+          readOnly // Make the field unchangeable
         />
         <Input
-          label="Numero de telephone"
+          label="Username"
           required
-          //   onChange={(e) => setPhone(e.target.value)}
+          value={user.username} // Static value
+          readOnly // Make the field unchangeable
         />
         <Input
           type="password"
           label="Mot de passe"
-          //   onChange={(e) => setPassword(e.target.value)}
+          value="password" // Static value
+          readOnly // Make the field unchangeable
         />
         <div className="flex flex-col w-full text-white text-xl font-bold gap-2 ">
           <h3>votre status :</h3>
@@ -54,8 +63,8 @@ function Left() {
               <input
                 type="checkbox"
                 className="w-5 h-5 "
-                onChange={() => setStatus([true, false])}
                 checked={status[0]}
+                readOnly // Make the field unchangeable
               />
               <p>Expert</p>
             </div>
@@ -63,8 +72,8 @@ function Left() {
               <input
                 type="checkbox"
                 className="w-5 h-5 "
-                onChange={() => setStatus([false, true])}
                 checked={status[1]}
+                readOnly // Make the field unchangeable
               />
               <p>Apprenant</p>
             </div>
@@ -73,6 +82,7 @@ function Left() {
         <Button
           className="bg-secondary text-white p-2 rounded-lg min-w-[300px] font-bold"
           radius="lg"
+          disabled // Disable the button
         >
           Modifier
         </Button>
@@ -83,8 +93,23 @@ function Left() {
 
 function Right() {
   // change at linking
-  const init = [true, false];
-  const [status, setStatus] = useState(init);
+
+  const isActive = localStorage.getItem("isActive") === "true";
+  const [status, setStatus] = useState(isActive);
+  const [isPending, setIsPending] = useState(false);
+
+  function timeout(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  const handleStatus = async (s) => {
+    setIsPending(true);
+    await timeout(1000);
+
+    setStatus(s);
+    localStorage.setItem("isActive", s);
+    setIsPending(false);
+  };
 
   return (
     <div className="w-[47%] flex flex-col  h-full ">
@@ -97,8 +122,8 @@ function Right() {
               <input
                 type="checkbox"
                 className="w-5 h-5 "
-                onChange={() => setStatus([true, false])}
-                checked={status[0]}
+                onChange={() => handleStatus(true)}
+                checked={status}
               />
               <p>Active</p>
             </div>
@@ -106,16 +131,25 @@ function Right() {
               <input
                 type="checkbox"
                 className="w-5 h-5 "
-                onChange={() => setStatus([false, true])}
-                checked={status[1]}
+                onChange={() => handleStatus(false)}
+                checked={!status}
               />
               <p>Desactive</p>
             </div>
           </div>
         </div>
 
-        {status[0] ? <Programe /> : <ProgrameLocked />}
+        {isPending ? <Pending /> : isActive ? <Programe /> : <ProgrameLocked />}
       </form>
+    </div>
+  );
+}
+
+function Pending() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 w-full h-full bg-primary">
+      <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
+      <p className="text-white font-semibold">Traitement en cours...</p>
     </div>
   );
 }
@@ -171,6 +205,7 @@ function Cour({ cour }) {
 }
 
 import lock from "../assets/lock.svg";
+import { time } from "framer-motion";
 
 function ProgrameLocked() {
   return (
