@@ -302,12 +302,9 @@ class StudentSubscription(models.Model):
     def is_sub(student : Student  , std_id  : int  = -1 ):
        sub= None
        if std_id !=-1:
-           print(std_id , "i am in id")
            sub =  StudentSubscription.objects.filter(student_id = std_id).last() 
        else:
-           print(std_id , "i am in obj")
            sub =  StudentSubscription.objects.filter(student_id = student.pk).last()  
-       print("\nA2\n")
        print(sub)
        return (  (sub ) and ( sub.end_date >= timezone.now() ) )
 
