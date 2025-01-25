@@ -1,31 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
+import { fetchQuizzes } from "./../API/quizAPI"; // Import de l'API
 
-export default function CourseForm (){
+export default function CourseForm() {
   const [selectedContent, setSelectedContent] = useState(null);
   const [selectedCard, setSelectedCard] = useState(null);
   const [quizAnswer, setQuizAnswer] = useState({});
   const [isQuizSubmitted, setIsQuizSubmitted] = useState(false);
+  const [quizzes, setQuizzes] = useState([]);
+
+  // ID statiques (remplacez-les par des valeurs dynamiques si nécessaires)
+  const instructor_pk = 1; // Exemple : ID de l'instructeur
+  const course_pk = 1; // Exemple : ID du cours
+  const content_pk = 1; // Exemple : ID du contenu
 
   const courseContent = [
-    { type: 'lecture', title: 'Lecture 1: Introduction au Machine Learning', content: '/path/to/file1.pdf' },
-    { type: 'lecture', title: 'Lecture 2: Apprentissage Supervisé', content: '/path/to/file2.pdf' },
-    { type: 'video', title: 'Vidéo 1: Introduction', content: 'video1.mp4' },
-    { type: 'video', title: 'Vidéo 2: Réseaux de Neurones', content: 'video2.mp4' },
-    { type: 'quiz', title: 'Quiz 1: Concepts de Base', content: [
-      { question: 'Qu\'est-ce qu\'un modèle supervisé ?', options: ['Apprentissage sans étiquette', 'Apprentissage avec étiquette', 'Apprentissage par renforcement'], answer: 'Apprentissage avec étiquette' },
-      { question: 'Qu\'est-ce qu\'un réseau de neurones ?', options: ['Un algorithme d\'optimisation', 'Un modèle d\'apprentissage', 'Une méthode de clustering'], answer: 'Un modèle d\'apprentissage' },
-      { question: 'Quel est le but de la régression ?', options: ['Prédire une valeur continue', 'Classer des données', 'Régler un hyperparamètre'], answer: 'Prédire une valeur continue' }
-    ]},
-    { type: 'quiz', title: 'Quiz 2: Avancées du Machine Learning', content: [
-      { question: 'Qu\'est-ce que l\'apprentissage non supervisé ?', options: ['Apprentissage avec étiquette', 'Clustering et réduction de dimensionnalité', 'Prédiction des résultats'], answer: 'Clustering et réduction de dimensionnalité' },
-      { question: 'Qu\'est-ce que le deep learning ?', options: ['Apprentissage avec des réseaux de neurones profonds', 'Une méthode de sélection de caractéristiques', 'Une technique d\'optimisation'], answer: 'Apprentissage avec des réseaux de neurones profonds' },
-    ]}
+    { type: "lecture", title: "Lecture 1: Introduction au Machine Learning", content: "/path/to/file1.pdf" },
+    { type: "lecture", title: "Lecture 2: Apprentissage Supervisé", content: "/path/to/file2.pdf" },
+    { type: "video", title: "Vidéo 1: Introduction", content: "video1.mp4" },
+    { type: "video", title: "Vidéo 2: Réseaux de Neurones", content: "video2.mp4" },
+    { type: "quiz", title: "Quiz 1: Concepts de Base", content: [] },
+    { type: "quiz", title: "Quiz 2: Avancées du Machine Learning", content: [] },
   ];
+
+  // Fetch quizzes lorsque le contenu est de type "quiz"
+  useEffect(() => {
+    if (selectedContent?.type === "quiz") {
+      const getQuizzes = async () => {
+        try {
+          const data = await fetchQuizzes(instructor_pk, course_pk, content_pk);
+          setQuizzes(data);
+        } catch (error) {
+          console.error("Erreur lors de la récupération des quizzes :", error);
+        }
+      };
+      getQuizzes();
+    }
+  }, [selectedContent]);
 
   const handleCardClick = (index) => {
     setSelectedCard(index);
     setSelectedContent(courseContent[index]);
-    setIsQuizSubmitted(false); // Reset quiz submission state
+    setIsQuizSubmitted(false);
   };
 
   const handleAnswerChange = (questionIndex, answer) => {
@@ -34,7 +49,7 @@ export default function CourseForm (){
 
   const handleSubmitQuiz = () => {
     setIsQuizSubmitted(true);
-    alert('Quiz soumis');
+    alert("Quiz soumis");
   };
 
   const handleCancelQuiz = () => {
@@ -50,16 +65,15 @@ export default function CourseForm (){
           <div
             key={index}
             className={`cursor-pointer p-3 mb-3 rounded-lg transition-colors hover:bg-green-200 ${
-              selectedCard === index ? 'bg-green-300' : 'bg-green-100'
+              selectedCard === index ? "bg-green-300" : "bg-green-100"
             }`}
             onClick={() => handleCardClick(index)}
           >
             <div className="flex items-center space-x-2">
-              {/* Icône selon le type de contenu */}
               <div className="w-6 h-6 text-green-600">
-                {item.type === 'lecture' && <i className="fas fa-book"></i>}
-                {item.type === 'video' && <i className="fas fa-video"></i>}
-                {item.type === 'quiz' && <i className="fas fa-question-circle"></i>}
+                {item.type === "lecture" && <i className="fas fa-book"></i>}
+                {item.type === "video" && <i className="fas fa-video"></i>}
+                {item.type === "quiz" && <i className="fas fa-question-circle"></i>}
               </div>
               <p className="font-semibold">{item.title}</p>
             </div>
@@ -69,23 +83,18 @@ export default function CourseForm (){
 
       {/* Zone centrale pour afficher le contenu */}
       <div className="flex-1 p-6 bg-gray-50">
-        {selectedContent && selectedContent.type === 'lecture' && (
+        {selectedContent && selectedContent.type === "lecture" && (
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold mb-4 text-center">{selectedContent.title}</h2>
             <div className="bg-white p-4 border rounded-lg">
-              <iframe
-                src={selectedContent.content}
-                width="100%"
-                height="600px"
-                title="PDF Lecture"
-              >
+              <iframe src={selectedContent.content} width="100%" height="600px" title="PDF Lecture">
                 Votre navigateur ne prend pas en charge les fichiers PDF.
               </iframe>
             </div>
           </div>
         )}
 
-        {selectedContent && selectedContent.type === 'video' && (
+        {selectedContent && selectedContent.type === "video" && (
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold mb-4 text-center">{selectedContent.title}</h2>
             <div className="bg-white p-4 border rounded-lg">
@@ -97,26 +106,13 @@ export default function CourseForm (){
           </div>
         )}
 
-        {selectedContent && selectedContent.type === 'quiz' && (
+        {selectedContent && selectedContent.type === "quiz" && (
           <div className="space-y-4">
             <h2 className="text-2xl font-semibold mb-4 text-center">{selectedContent.title}</h2>
             <form className="space-y-6">
-              {selectedContent.content.map((question, index) => (
+              {quizzes.map((quiz, index) => (
                 <div key={index} className="bg-white p-4 border rounded-lg">
-                  <p className="font-medium">{question.question}</p>
-                  {question.options.map((option, idx) => (
-                    <label key={idx} className="block">
-                      <input
-                        type="radio"
-                        name={`question-${index}`}
-                        value={option}
-                        checked={quizAnswer[index] === option}
-                        onChange={() => handleAnswerChange(index, option)}
-                        className="mr-2"
-                      />
-                      {option}
-                    </label>
-                  ))}
+                  <p className="font-medium">{quiz.title}</p>
                 </div>
               ))}
             </form>
@@ -140,5 +136,4 @@ export default function CourseForm (){
       </div>
     </div>
   );
-};
-
+}
