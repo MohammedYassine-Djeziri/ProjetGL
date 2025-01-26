@@ -31,6 +31,7 @@ function App() {
           <Route path="/client" element={<Client />} />
           <Route path="/search-client" element={<SearchResultClient />} />
           <Route path="/course-client" element={<CourseClient />} />
+            <Route path="/course-client/:id" element={<CourseClient />} />
           <Route path="/select-role" element={<SelectRole />} />
           <Route
             path="/course-client/course-example/form-example"

@@ -2,44 +2,8 @@ import React from "react";
 import TopBarExpert from "../expert/components/TopBar";
 import { useState } from "react";
 import { Button } from "@nextui-org/react";
+import { useNavigate } from "react-router-dom";
 
-//fetching the data from the backend
-const data = [
-  {
-    id: 1,
-    title: "Cours de React",
-    teacher: "Mohamed",
-    image: "https://blog.ippon.fr/content/images/2016/04/react-javascript.png",
-    description:
-      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type an",
-  },
-  {
-    id: 2,
-    title: "Cours de Django",
-    teacher: "Mohamed",
-    image:
-      "https://www.slate.fr/uploads/store/drupal_slate/joel-muniz-xqxjjhk-c08-unsplash.jpg",
-    description:
-      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type an",
-  },
-  {
-    id: 3,
-    title: "Cours de Python",
-    teacher: "Mohamed",
-    image:
-      "https://digital.hec.ca/wp-content/uploads/2024/11/0_QR-44Cl9I4Y7pUYQ-1.jpg",
-    description:
-      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type an",
-  },
-  {
-    id: 4,
-    title: "Cours de Django",
-    image:
-      "https://www.slate.fr/uploads/store/drupal_slate/joel-muniz-xqxjjhk-c08-unsplash.jpg",
-    description:
-      "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type an",
-  },
-];
 
 export default function SearchResults() {
   const [courses, setCourses] = useState(data);
@@ -62,6 +26,12 @@ export default function SearchResults() {
 }
 
 function CourseCard({ course }) {
+  const navigate = useNavigate();
+
+  const onOpen = () => {
+    navigate("/course-client");
+  };
+
   return (
     <div className="flex items-center justify-evenly gap-2 p-4 rounded-3xl bg-gradient-to-b from-[#00FF84] to-[#FFFFFF] border-5 border-white ">
       <div className="flex flex-col gap-2 h-full max-w-[50%]">
@@ -75,7 +45,7 @@ function CourseCard({ course }) {
           <Button
             radius="lg"
             className=" bg-gray-700 text-white min-w-[150px] font-semibold border-white border-3 shadow-large"
-            // onClick={onOpen}
+          // onClick={onOpen}
           >
             generer un lien d’affiation
           </Button>
@@ -83,7 +53,7 @@ function CourseCard({ course }) {
         <Button
           radius="lg"
           className=" bg-red-500 text-white min-w-[150px] font-semibold border-white border-3 shadow-large"
-          // onClick={onOpen}
+          onPress={onOpen}
         >
           Voir les detailes
         </Button>

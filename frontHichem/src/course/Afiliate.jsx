@@ -104,7 +104,7 @@ function Right() {
 
   const handleStatus = async (s) => {
     setIsPending(true);
-    await timeout(1000);
+    await timeout(400);
 
     setStatus(s);
     localStorage.setItem("isActive", s);

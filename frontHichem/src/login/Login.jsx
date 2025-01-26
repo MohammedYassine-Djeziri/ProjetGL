@@ -60,7 +60,7 @@ export default function Login() {
         // or if the user does not have a role, redirect him to the role selection page
         if (data.role === "student") {
           navigate("/client");
-        } else if (data.role === "expert") {
+        } else if (data.role === "instructor") {
           navigate("/expert");
         } else {
           navigate("/select-role");

@@ -3,6 +3,11 @@ import TopBarExpert from "../expert/components/TopBar";
 import { Button } from "@nextui-org/react";
 import BeatLoader from "react-spinners/BeatLoader";
 import { useFetchData } from "../hooks/useFetchData";
+import { useNavigate } from "react-router-dom";
+import { usePostData } from "../hooks/usePostData";
+import { useState } from "react";
+
+
 
 export default function SearchResultClient() {
   const query = new URLSearchParams(window.location.search).get("query");
@@ -46,6 +51,42 @@ export default function SearchResultClient() {
 }
 
 function CourseCard({ course }) {
+
+  const navigate = useNavigate();
+  const [affiliateLoading, setAffiliateLoading] = useState(false);
+  const [affiliateLink, setAffiliateLink] = useState("");
+
+  const { mutate: affiliate } = usePostData(
+    "https://glbackend-tdpm.onrender.com/DzSkills/affiliate/generatelink/"
+  );
+
+  const onOpen = () => {
+    navigate(`/course-client/${course.id}`);
+  };
+
+  const onAffiliate = () => {
+    setAffiliateLoading(true);
+    affiliate(
+      { "course_pk": String(course.id) },
+      {
+        onSuccess: (data) => {
+          setAffiliateLink(data?.referal_link);
+          console.log("Affiliate link generated:", data?.referal_link);
+          setAffiliateLoading(false);
+        },
+        onError: (error) => {
+          console.error("Affiliate error:", error);
+          setAffiliateLoading(false);
+        },
+      }
+    );
+  };
+
+
+  const isAffActive = localStorage.getItem("isActive") === "true";
+
+
+
   return (
     <div className="flex items-center justify-evenly gap-2 p-4 rounded-3xl bg-gradient-to-b from-[#00FF84] to-[#FFFFFF] border-2 border-white">
       <div className="flex flex-col gap-2 h-full max-w-[50%]">
@@ -57,17 +98,21 @@ function CourseCard({ course }) {
         <p className="text-semibold text-xl">{course.description}</p>
       </div>
       <div className="flex flex-col gap-4 items-center justify-center">
-        <a href="/course-expert/afiliate-example">
-          <Button
-            radius="lg"
-            className="bg-gray-700 text-white min-w-[150px] font-semibold border-white border-3 shadow-large"
-          >
-            generer un lien d’affiation
-          </Button>
-        </a>
+        {isAffActive && <Button
+          radius="lg"
+          className="bg-gray-700 text-white min-w-[150px] font-semibold border-white border-3 shadow-large"
+          isLoading={affiliateLoading}
+          onPress={onAffiliate}
+        >
+          generer un lien d’affiation
+        </Button>}
+        {affiliateLoading && isAffActive && <p>Generating link...</p>}
+        {affiliateLink && isAffActive && <p>Your affiliate link: {affiliateLink}</p>}
+
         <Button
           radius="lg"
           className="bg-red-500 text-white min-w-[150px] font-semibold border-white border-3 shadow-large"
+          onPress={onOpen}
         >
           Voir les detailes
         </Button>
@@ -79,7 +124,7 @@ function CourseCard({ course }) {
         </Button>
       </div>
       <img
-        src={course.thumbnail}
+        src={course?.thumbnail_data || "https://placehold.co/128x128"}
         alt="course"
         className="h-[270px] w-[230px] rounded-2xl"
       />
