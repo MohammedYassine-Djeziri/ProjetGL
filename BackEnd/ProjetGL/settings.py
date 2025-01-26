@@ -79,6 +79,7 @@ INSTALLED_APPS = [
     'App',
     'drf_spectacular',
     'django_filters',
+    'corsheaders'
 ]
 
 INTERNAL_IPS = [
@@ -96,6 +97,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     "debug_toolbar.middleware.DebugToolbarMiddleware",
+    'corsheaders.middleware.CorsMiddleware'
 ]
 
 
@@ -271,4 +273,20 @@ SUBSCRIPTION = {
 }
 
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    # Add other origins as needed
+]
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'authorization',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
 AUTH_USER_MODEL = 'App.User'
+
+
