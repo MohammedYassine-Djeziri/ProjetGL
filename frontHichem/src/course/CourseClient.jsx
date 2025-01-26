@@ -1,6 +1,5 @@
 import React from "react";
 import TopBarExpert from "../expert/components/TopBar";
-import { Button } from "@nextui-org/react";
 import { useState, useEffect } from "react";
 import play_circle from "../assets/play_circle.svg";
 import assignment_turned_in from "../assets/assignment_turned_in.svg";

@@ -32,7 +32,19 @@ export default function SearchResultClient() {
       );
     }
 
-    return data?.map((course) => <CourseCard course={course} key={course.id} />);
+    const filteredCourses = data?.filter(course =>
+      course.title.toLowerCase().includes(query?.toLowerCase() || '')
+    );
+
+    if (!filteredCourses?.length) {
+      return (
+        <div className="p-4 bg-white rounded-lg text-center">
+          <p className="text-gray-600">No courses found matching "{query}"</p>
+        </div>
+      );
+    }
+
+    return filteredCourses.map((course) => <CourseCard course={course} key={course.id} />);
   };
 
   return (
