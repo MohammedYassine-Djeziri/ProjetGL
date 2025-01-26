@@ -8,7 +8,8 @@ from .serializers import (InstructorSerializer, StudentSerializer , CourseSerial
                           QuizQuestionSerializer , ForumPostSerializer , ForumPostCommentSerializer,
                           StudentCourseContentSerializer , StudentQuizSerializer ,
                           StudentQuizQuestionSerializer ,StudentProgressSerializer, CourseContentWithQuizSerializer,
-                          StudentCourseSerializer , UnEnrolledStudentCourseContentSerializer , CertificateSerializer , EnrollmentSerializer)
+                          StudentCourseSerializer , UnEnrolledStudentCourseContentSerializer , CertificateSerializer , EnrollmentSerializer,
+                          CustomTokenObtainPairSerializer)
 from rest_framework.permissions import IsAuthenticated , SAFE_METHODS , IsAdminUser
 from rest_framework.viewsets import GenericViewSet , ReadOnlyModelViewSet , ModelViewSet 
 from django.views import View
@@ -46,6 +47,7 @@ from rest_framework.filters import SearchFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Func, F, Value, CharField
 from django.db.models.functions import Concat, ExtractMonth, ExtractYear
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 class InstructorViewSet(ListModelMixin , CreateModelMixin, RetrieveModelMixin , UpdateModelMixin , GenericViewSet , DestroyModelMixin):
     queryset = Instructor.objects.all()
@@ -1062,3 +1064,8 @@ class getaffiliationearning(ReadOnlyModelViewSet):
             for affiliateduser in affiliatedusers:
                 total_earning += affiliateduser.earning
         return JsonResponse({'total_earning': total_earning})
+
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
